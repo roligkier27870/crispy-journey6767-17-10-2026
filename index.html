@@ -196,7 +196,9 @@
       y: centerY,
       radius: 12,
       color: "#2587ff",
-      speed: 150
+      speed: 150,
+      vx: 0,
+      vy: 0
     };
 
     const ball = {
@@ -230,36 +232,77 @@
     // Avoid a stuck movement key if the browser loses focus.
     window.addEventListener("blur", () => keys.clear());
 
-    function updatePlayer(deltaTime) {
-      let dx = 0;
-      let dy = 0;
+    
+function updatePlayer(deltaTime) {
+  let dx = 0;
+  let dy = 0;
 
-      if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
-      if (keys.has("d") || keys.has("arrowright")) dx += 1;
-      if (keys.has("w") || keys.has("arrowup")) dy -= 1;
-      if (keys.has("s") || keys.has("arrowdown")) dy += 1;
+  if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
+  if (keys.has("d") || keys.has("arrowright")) dx += 1;
+  if (keys.has("w") || keys.has("arrowup")) dy -= 1;
+  if (keys.has("s") || keys.has("arrowdown")) dy += 1;
 
-      // Normalize diagonal movement so it isn't faster.
-      if (dx !== 0 || dy !== 0) {
-        const length = Math.hypot(dx, dy);
-        dx /= length;
-        dy /= length;
-      }
+  // Normalize diagonal input.
+  if (dx !== 0 || dy !== 0) {
+    const length = Math.hypot(dx, dy);
+    dx /= length;
+    dy /= length;
+  }
 
-      player.x += dx * player.speed * deltaTime;
-      player.y += dy * player.speed * deltaTime;
+  // Movement feel: acceleration and friction.
+  const acceleration = 600;
+  const friction = 5;
+  const maxSpeed = player.speed;
 
-      // Keep the whole player marker inside the pitch.
-      player.x = Math.max(
-        field.x + player.radius,
-        Math.min(field.x + field.w - player.radius, player.x)
-      );
+  if (dx !== 0 || dy !== 0) {
+    player.vx += dx * acceleration * deltaTime;
+    player.vy += dy * acceleration * deltaTime;
+  } else {
+    // Gradually slow down when no direction is held.
+    const drag = Math.exp(-friction * deltaTime);
+    player.vx *= drag;
+    player.vy *= drag;
+  }
 
-      player.y = Math.max(
-        field.y + player.radius,
-        Math.min(field.y + field.h - player.radius, player.y)
-      );
-    }
+  // Cap total velocity, including diagonal movement.
+  const velocity = Math.hypot(player.vx, player.vy);
+
+  if (velocity > maxSpeed) {
+    player.vx = (player.vx / velocity) * maxSpeed;
+    player.vy = (player.vy / velocity) * maxSpeed;
+  }
+
+  // Move according to current velocity.
+  player.x += player.vx * deltaTime;
+  player.y += player.vy * deltaTime;
+
+  // Keep the player inside the pitch and stop at its edges.
+  const minX = field.x + player.radius;
+  const maxX = field.x + field.w - player.radius;
+  const minY = field.y + player.radius;
+  const maxY = field.y + field.h - player.radius;
+
+  if (player.x < minX) {
+    player.x = minX;
+    player.vx = Math.max(0, player.vx);
+  }
+
+  if (player.x > maxX) {
+    player.x = maxX;
+    player.vx = Math.min(0, player.vx);
+  }
+
+  if (player.y < minY) {
+    player.y = minY;
+    player.vy = Math.max(0, player.vy);
+  }
+
+  if (player.y > maxY) {
+    player.y = maxY;
+    player.vy = Math.min(0, player.vy);
+  }
+}
+
 
     function drawGrass() {
       const { x, y, w, h } = field;
