@@ -7,7 +7,9 @@
   <title>Kickoff Football</title>
 
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -20,7 +22,9 @@
       font-family: Arial, sans-serif;
     }
 
-    .app { width: min(100%, 1120px); }
+    .app {
+      width: min(100%, 1120px);
+    }
 
     header {
       display: flex;
@@ -37,7 +41,9 @@
       letter-spacing: -1px;
     }
 
-    .accent { color: #80d69a; }
+    .accent {
+      color: #80d69a;
+    }
 
     .subtitle {
       margin-top: 6px;
@@ -50,6 +56,14 @@
       font-size: 11px;
       letter-spacing: 2px;
       font-weight: bold;
+    }
+
+    .scoreboard {
+      margin-top: 8px;
+      color: #f4f7f5;
+      font-size: 16px;
+      letter-spacing: 1px;
+      white-space: nowrap;
     }
 
     .stadium {
@@ -106,7 +120,9 @@
       transition: background 120ms, border-color 120ms;
     }
 
-    button:hover { border-color: #91c7a0; }
+    button:hover {
+      border-color: #91c7a0;
+    }
 
     button[aria-pressed="true"] {
       background: #285f40;
@@ -127,9 +143,17 @@
     }
 
     @media (max-width: 600px) {
-      body { padding: 18px 10px; }
-      .stadium { padding: 6px; }
-      .controls { align-items: flex-start; }
+      body {
+        padding: 18px 10px;
+      }
+
+      .stadium {
+        padding: 6px;
+      }
+
+      .controls {
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
@@ -141,7 +165,11 @@
         <h1>KICKOFF <span class="accent">FOOTBALL</span></h1>
         <div class="subtitle">THE PITCH · PLAYER PREVIEW</div>
       </div>
-      <div class="status">● DEVELOPMENT</div>
+
+      <div class="status">
+        <div>● DEVELOPMENT</div>
+        <div id="scoreboard" class="scoreboard">BLUE 0 — 0 RED</div>
+      </div>
     </header>
 
     <section class="stadium">
@@ -150,7 +178,7 @@
           id="pitch"
           width="1200"
           height="760"
-          aria-label="Football pitch with a movable blue player and a ball"
+          aria-label="Football pitch with a movable blue player and ball"
           tabindex="0"
         ></canvas>
       </div>
@@ -171,7 +199,7 @@
     </section>
 
     <p class="note">
-      Controls: WASD or arrow keys to move. The ball is stationary for now.
+      Controls: WASD or arrow keys to move. Push the ball into the goals to score.
     </p>
   </main>
 
@@ -182,13 +210,21 @@
     const W = canvas.width;
     const H = canvas.height;
 
-    const field = { x: 80, y: 40, w: 1040, h: 680 };
+    const field = {
+      x: 80,
+      y: 40,
+      w: 1040,
+      h: 680
+    };
+
     const centerX = field.x + field.w / 2;
     const centerY = field.y + field.h / 2;
 
     const state = {
       camera: "full",
-      grass: "stripes"
+      grass: "stripes",
+      leftScore: 0,
+      rightScore: 0
     };
 
     const player = {
@@ -196,24 +232,21 @@
       y: centerY,
       radius: 12,
       color: "#2587ff",
-      speed: 120,
+      speed: 90,
       vx: 0,
       vy: 0
     };
 
-    
-  const ball = {
-     x: centerX,
-     y: centerY,
-     radius: 11,
-     vx: 0,
-     vy: 0,
-     friction: 1.8,
-     restitution: 0.75
+    const ball = {
+      x: centerX,
+      y: centerY,
+      radius: 11,
+      vx: 0,
+      vy: 0,
+      friction: 2.8,
+      restitution: 0.75
     };
 
-
-    // Tracks which movement keys are currently held.
     const keys = new Set();
 
     const movementKeys = new Set([
@@ -225,7 +258,6 @@
       const key = event.key.toLowerCase();
 
       if (movementKeys.has(key)) {
-        // Stop arrow keys from scrolling the page.
         event.preventDefault();
         keys.add(key);
       }
@@ -235,166 +267,186 @@
       keys.delete(event.key.toLowerCase());
     });
 
-    // Avoid a stuck movement key if the browser loses focus.
     window.addEventListener("blur", () => keys.clear());
 
-    
-function updatePlayer(deltaTime) {
-  let dx = 0;
-  let dy = 0;
+    function updatePlayer(deltaTime) {
+      let dx = 0;
+      let dy = 0;
 
-  if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
-  if (keys.has("d") || keys.has("arrowright")) dx += 1;
-  if (keys.has("w") || keys.has("arrowup")) dy -= 1;
-  if (keys.has("s") || keys.has("arrowdown")) dy += 1;
+      if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
+      if (keys.has("d") || keys.has("arrowright")) dx += 1;
+      if (keys.has("w") || keys.has("arrowup")) dy -= 1;
+      if (keys.has("s") || keys.has("arrowdown")) dy += 1;
 
-  // Normalize diagonal input.
-  if (dx !== 0 || dy !== 0) {
-    const length = Math.hypot(dx, dy);
-    dx /= length;
-    dy /= length;
-  }
+      if (dx !== 0 || dy !== 0) {
+        const length = Math.hypot(dx, dy);
+        dx /= length;
+        dy /= length;
+      }
 
-  // Movement feel: acceleration and friction.
-  const acceleration = 600;
-  const friction = 5;
-  const maxSpeed = player.speed;
+      const acceleration = 350;
+      const friction = 5;
+      const maxSpeed = player.speed;
 
-  if (dx !== 0 || dy !== 0) {
-    player.vx += dx * acceleration * deltaTime;
-    player.vy += dy * acceleration * deltaTime;
-  } else {
-    // Gradually slow down when no direction is held.
-    const drag = Math.exp(-friction * deltaTime);
-    player.vx *= drag;
-    player.vy *= drag;
-  }
+      if (dx !== 0 || dy !== 0) {
+        player.vx += dx * acceleration * deltaTime;
+        player.vy += dy * acceleration * deltaTime;
+      } else {
+        const drag = Math.exp(-friction * deltaTime);
+        player.vx *= drag;
+        player.vy *= drag;
+      }
 
-  // Cap total velocity, including diagonal movement.
-  const velocity = Math.hypot(player.vx, player.vy);
+      const velocity = Math.hypot(player.vx, player.vy);
 
-  if (velocity > maxSpeed) {
-    player.vx = (player.vx / velocity) * maxSpeed;
-    player.vy = (player.vy / velocity) * maxSpeed;
-  }
+      if (velocity > maxSpeed) {
+        player.vx = player.vx / velocity * maxSpeed;
+        player.vy = player.vy / velocity * maxSpeed;
+      }
 
-  // Move according to current velocity.
-  player.x += player.vx * deltaTime;
-  player.y += player.vy * deltaTime;
+      player.x += player.vx * deltaTime;
+      player.y += player.vy * deltaTime;
 
-  // Keep the player inside the pitch and stop at its edges.
-  const minX = field.x + player.radius;
-  const maxX = field.x + field.w - player.radius;
-  const minY = field.y + player.radius;
-  const maxY = field.y + field.h - player.radius;
+      const minX = field.x + player.radius;
+      const maxX = field.x + field.w - player.radius;
+      const minY = field.y + player.radius;
+      const maxY = field.y + field.h - player.radius;
 
-  if (player.x < minX) {
-    player.x = minX;
-    player.vx = Math.max(0, player.vx);
-  }
+      if (player.x < minX) {
+        player.x = minX;
+        player.vx = Math.max(0, player.vx);
+      }
 
-  if (player.x > maxX) {
-    player.x = maxX;
-    player.vx = Math.min(0, player.vx);
-  }
+      if (player.x > maxX) {
+        player.x = maxX;
+        player.vx = Math.min(0, player.vx);
+      }
 
-  if (player.y < minY) {
-    player.y = minY;
-    player.vy = Math.max(0, player.vy);
-  }
+      if (player.y < minY) {
+        player.y = minY;
+        player.vy = Math.max(0, player.vy);
+      }
 
-  if (player.y > maxY) {
-    player.y = maxY;
-    player.vy = Math.min(0, player.vy);
-  }
-}
+      if (player.y > maxY) {
+        player.y = maxY;
+        player.vy = Math.min(0, player.vy);
+      }
+    }
 
+    function updateBall(deltaTime) {
+      ball.x += ball.vx * deltaTime;
+      ball.y += ball.vy * deltaTime;
 
-function updateBall(deltaTime) {
-  // Move the ball using its current velocity.
-  ball.x += ball.vx * deltaTime;
-  ball.y += ball.vy * deltaTime;
+      const drag = Math.exp(-ball.friction * deltaTime);
+      ball.vx *= drag;
+      ball.vy *= drag;
 
-  // Gradually slow the ball down.
-  const drag = Math.exp(-ball.friction * deltaTime);
-  ball.vx *= drag;
-  ball.vy *= drag;
+      if (Math.hypot(ball.vx, ball.vy) < 2) {
+        ball.vx = 0;
+        ball.vy = 0;
+      }
 
-  // Stop tiny movements to prevent endless drifting.
-  if (Math.hypot(ball.vx, ball.vy) < 2) {
-    ball.vx = 0;
-    ball.vy = 0;
-  }
+      const minX = field.x + ball.radius;
+      const maxX = field.x + field.w - ball.radius;
+      const minY = field.y + ball.radius;
+      const maxY = field.y + field.h - ball.radius;
 
-  // Bounce off the pitch boundaries.
-  const minX = field.x + ball.radius;
-  const maxX = field.x + field.w - ball.radius;
-  const minY = field.y + ball.radius;
-  const maxY = field.y + field.h - ball.radius;
+      const goalHeight = 112;
+      const goalTop = centerY - goalHeight / 2 + ball.radius;
+      const goalBottom = centerY + goalHeight / 2 - ball.radius;
 
-  if (ball.x < minX) {
-    ball.x = minX;
-    ball.vx = Math.abs(ball.vx) * ball.restitution;
-  }
+      const insideGoalMouth =
+        ball.y >= goalTop && ball.y <= goalBottom;
 
-  if (ball.x > maxX) {
-    ball.x = maxX;
-    ball.vx = -Math.abs(ball.vx) * ball.restitution;
-  }
+      // Ball crosses the left goal line: red team scores.
+      if (ball.x <= minX && insideGoalMouth) {
+        state.rightScore++;
+        resetAfterGoal();
+        return;
+      }
 
-  if (ball.y < minY) {
-    ball.y = minY;
-    ball.vy = Math.abs(ball.vy) * ball.restitution;
-  }
+      // Ball crosses the right goal line: blue team scores.
+      if (ball.x >= maxX && insideGoalMouth) {
+        state.leftScore++;
+        resetAfterGoal();
+        return;
+      }
 
-  if (ball.y > maxY) {
-    ball.y = maxY;
-    ball.vy = -Math.abs(ball.vy) * ball.restitution;
-  }
-}
+      // Bounce off the pitch boundary outside the goal opening.
+      if (ball.x < minX) {
+        ball.x = minX;
+        ball.vx = Math.abs(ball.vx) * ball.restitution;
+      }
 
-    
-function handlePlayerBallCollision() {
-  const dx = ball.x - player.x;
-  const dy = ball.y - player.y;
-  const distance = Math.hypot(dx, dy);
-  const minDistance = player.radius + ball.radius;
+      if (ball.x > maxX) {
+        ball.x = maxX;
+        ball.vx = -Math.abs(ball.vx) * ball.restitution;
+      }
 
-  // No collision if the two circles aren't touching.
-  if (distance >= minDistance) return;
+      if (ball.y < minY) {
+        ball.y = minY;
+        ball.vy = Math.abs(ball.vy) * ball.restitution;
+      }
 
-  // Calculate the direction from player to ball.
-  const nx = distance > 0 ? dx / distance : 1;
-  const ny = distance > 0 ? dy / distance : 0;
+      if (ball.y > maxY) {
+        ball.y = maxY;
+        ball.vy = -Math.abs(ball.vy) * ball.restitution;
+      }
+    }
 
-  // Separate the overlapping circles.
-  const overlap = minDistance - distance;
-  ball.x += nx * overlap;
-  ball.y += ny * overlap;
+    function handlePlayerBallCollision() {
+      const dx = ball.x - player.x;
+      const dy = ball.y - player.y;
+      const distance = Math.hypot(dx, dy);
+      const minDistance = player.radius + ball.radius;
 
-  // Transfer some player movement into the ball.
-  const impactSpeed = player.vx * nx + player.vy * ny;
+      if (distance >= minDistance) return;
 
-  if (impactSpeed > 0) {
-    const kickStrength = 1.25;
+      const nx = distance > 0 ? dx / distance : 1;
+      const ny = distance > 0 ? dy / distance : 0;
 
-    ball.vx += nx * impactSpeed * kickStrength;
-    ball.vy += ny * impactSpeed * kickStrength;
-  }
+      const overlap = minDistance - distance;
 
-  // Keep the ball inside the playable area after contact.
-  ball.x = Math.max(
-    field.x + ball.radius,
-    Math.min(field.x + field.w - ball.radius, ball.x)
-  );
+      ball.x += nx * overlap;
+      ball.y += ny * overlap;
 
-  ball.y = Math.max(
-    field.y + ball.radius,
-    Math.min(field.y + field.h - ball.radius, ball.y)
-  );
-}
+      const impactSpeed = player.vx * nx + player.vy * ny;
 
-    
+      if (impactSpeed > 0) {
+        const kickStrength = 0.65;
+
+        ball.vx += nx * impactSpeed * kickStrength;
+        ball.vy += ny * impactSpeed * kickStrength;
+      }
+
+      ball.x = Math.max(
+        field.x + ball.radius,
+        Math.min(field.x + field.w - ball.radius, ball.x)
+      );
+
+      ball.y = Math.max(
+        field.y + ball.radius,
+        Math.min(field.y + field.h - ball.radius, ball.y)
+      );
+    }
+
+    function resetAfterGoal() {
+      ball.x = centerX;
+      ball.y = centerY;
+      ball.vx = 0;
+      ball.vy = 0;
+
+      player.x = centerX - 125;
+      player.y = centerY;
+      player.vx = 0;
+      player.vy = 0;
+
+      keys.clear();
+
+      document.getElementById("scoreboard").textContent =
+        `BLUE ${state.leftScore} — ${state.rightScore} RED`;
+    }
+
     function drawGrass() {
       const { x, y, w, h } = field;
 
@@ -412,7 +464,12 @@ function handlePlayerBallCollision() {
 
         for (let i = 0; i < count; i++) {
           ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
-          ctx.fillRect(x + i * stripeWidth, y, stripeWidth + 0.5, h);
+          ctx.fillRect(
+            x + i * stripeWidth,
+            y,
+            stripeWidth + 0.5,
+            h
+          );
         }
       } else {
         const maxRadius = Math.hypot(w / 2, h / 2) + 80;
@@ -422,9 +479,13 @@ function handlePlayerBallCollision() {
         for (let radius = maxRadius; radius >= 0; radius -= step) {
           ctx.beginPath();
           ctx.ellipse(
-            centerX, centerY,
-            radius * 1.45, radius,
-            0, 0, Math.PI * 2
+            centerX,
+            centerY,
+            radius * 1.45,
+            radius,
+            0,
+            0,
+            Math.PI * 2
           );
 
           ctx.fillStyle = index % 2 === 0 ? "#2e8749" : "#24763e";
@@ -446,8 +507,12 @@ function handlePlayerBallCollision() {
     function drawCircle(x, y, radius, fill = false) {
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-      if (fill) ctx.fill();
-      else ctx.stroke();
+
+      if (fill) {
+        ctx.fill();
+      } else {
+        ctx.stroke();
+      }
     }
 
     function drawGoal(side) {
@@ -455,6 +520,7 @@ function handlePlayerBallCollision() {
       const goalWidth = 35;
       const goalHeight = 112;
       const goalY = y + (h - goalHeight) / 2;
+
       const goalX = side === "left" ? x - goalWidth : x + w;
 
       ctx.fillStyle = "#dbe9dd22";
@@ -505,26 +571,42 @@ function handlePlayerBallCollision() {
         const goalBoxX = leftSide ? x : x + w - goalAreaDepth;
 
         ctx.strokeRect(
-          boxX, centerY - penaltyHeight / 2,
-          penaltyDepth, penaltyHeight
+          boxX,
+          centerY - penaltyHeight / 2,
+          penaltyDepth,
+          penaltyHeight
         );
 
         ctx.strokeRect(
-          goalBoxX, centerY - goalAreaHeight / 2,
-          goalAreaDepth, goalAreaHeight
+          goalBoxX,
+          centerY - goalAreaHeight / 2,
+          goalAreaDepth,
+          goalAreaHeight
         );
 
-        const spotX = leftSide ? x + spotDistance : x + w - spotDistance;
+        const spotX = leftSide
+          ? x + spotDistance
+          : x + w - spotDistance;
+
         drawCircle(spotX, centerY, 4, true);
 
         ctx.beginPath();
 
         if (leftSide) {
-          ctx.arc(spotX, centerY, penaltyArcRadius, -0.88, 0.88);
+          ctx.arc(
+            spotX,
+            centerY,
+            penaltyArcRadius,
+            -0.88,
+            0.88
+          );
         } else {
           ctx.arc(
-            spotX, centerY, penaltyArcRadius,
-            Math.PI - 0.88, Math.PI + 0.88
+            spotX,
+            centerY,
+            penaltyArcRadius,
+            Math.PI - 0.88,
+            Math.PI + 0.88
           );
         }
 
@@ -553,7 +635,15 @@ function handlePlayerBallCollision() {
       ctx.save();
 
       ctx.beginPath();
-      ctx.ellipse(x + 3, y + 5, radius * 0.95, radius * 0.7, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        x + 3,
+        y + 5,
+        radius * 0.95,
+        radius * 0.7,
+        0,
+        0,
+        Math.PI * 2
+      );
       ctx.fillStyle = "#0005";
       ctx.fill();
 
@@ -569,8 +659,11 @@ function handlePlayerBallCollision() {
         const px = x + Math.cos(angle) * radius * 0.42;
         const py = y + Math.sin(angle) * radius * 0.42;
 
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        if (i === 0) {
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
       }
 
       ctx.closePath();
@@ -592,7 +685,15 @@ function handlePlayerBallCollision() {
       ctx.save();
 
       ctx.beginPath();
-      ctx.ellipse(x + 2, y + 4, radius + 1, radius * 0.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        x + 2,
+        y + 4,
+        radius + 1,
+        radius * 0.8,
+        0,
+        0,
+        Math.PI * 2
+      );
       ctx.fillStyle = "#0005";
       ctx.fill();
 
@@ -605,8 +706,12 @@ function handlePlayerBallCollision() {
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
       const gradient = ctx.createRadialGradient(
-        x - radius * 0.35, y - radius * 0.4, 1,
-        x, y, radius
+        x - radius * 0.35,
+        y - radius * 0.4,
+        1,
+        x,
+        y,
+        radius
       );
 
       gradient.addColorStop(0, "#62b0ff");
@@ -632,6 +737,7 @@ function handlePlayerBallCollision() {
 
       if (state.camera === "zoom") {
         const zoom = 1.22;
+
         ctx.translate(centerX, centerY);
         ctx.scale(zoom, zoom);
         ctx.translate(-centerX, -centerY);
@@ -663,22 +769,25 @@ function handlePlayerBallCollision() {
     }
 
     document.getElementById("full").addEventListener(
-      "click", () => setOption("camera", "full")
+      "click",
+      () => setOption("camera", "full")
     );
 
     document.getElementById("zoom").addEventListener(
-      "click", () => setOption("camera", "zoom")
+      "click",
+      () => setOption("camera", "zoom")
     );
 
     document.getElementById("stripes").addEventListener(
-      "click", () => setOption("grass", "stripes")
+      "click",
+      () => setOption("grass", "stripes")
     );
 
     document.getElementById("rings").addEventListener(
-      "click", () => setOption("grass", "rings")
+      "click",
+      () => setOption("grass", "rings")
     );
 
-    // Smooth animation loop; movement is frame-rate independent.
     let previousTime = 0;
 
     function gameLoop(timestamp) {
