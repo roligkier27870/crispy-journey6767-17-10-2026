@@ -453,7 +453,8 @@ if (inGoalMouth) {
 ball.y = Math.max(
   field.y + ball.radius,
   Math.min(field.y + field.h - ball.radius, ball.y)
-);
+  );
+    }
 
     function resetAfterGoal() {
       ball.x = centerX;
