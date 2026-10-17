@@ -130,6 +130,16 @@
       color: white;
     }
 
+    #shoot {
+      background: #285f40;
+      border-color: #71bd8a;
+      font-weight: bold;
+    }
+
+    #shoot:hover {
+      background: #34784f;
+    }
+
     button:focus-visible {
       outline: 2px solid #a7efbd;
       outline-offset: 3px;
@@ -195,11 +205,16 @@
           <button id="stripes" aria-pressed="true">Stripes</button>
           <button id="rings" aria-pressed="false">Concentric</button>
         </div>
+
+        <div class="group">
+          <button id="shoot" type="button">⚽ SHOOT [SPACE]</button>
+        </div>
       </div>
     </section>
 
     <p class="note">
-      Controls: WASD or arrow keys to move. Push the ball into the goals to score.
+      Controls: WASD or arrow keys to move. Press Space or click SHOOT
+      when the ball is nearby to take a powerful shot.
     </p>
   </main>
 
@@ -219,6 +234,8 @@
 
     const centerX = field.x + field.w / 2;
     const centerY = field.y + field.h / 2;
+
+    const GOAL_HEIGHT = 112;
 
     const state = {
       camera: "full",
@@ -249,6 +266,8 @@
 
     const keys = new Set();
 
+    let shootRequested = false;
+
     const movementKeys = new Set([
       "w", "a", "s", "d",
       "arrowup", "arrowdown", "arrowleft", "arrowright"
@@ -261,14 +280,26 @@
         event.preventDefault();
         keys.add(key);
       }
+
+      if (event.code === "Space") {
+        event.preventDefault();
+
+        if (!event.repeat) {
+          shootRequested = true;
+        }
+      }
     });
 
     window.addEventListener("keyup", (event) => {
       keys.delete(event.key.toLowerCase());
     });
 
-    window.addEventListener("blur", () => keys.clear());
+    window.addEventListener("blur", () => {
+      keys.clear();
+      shootRequested = false;
+    });
 
+    // PLAYER MOVEMENT
     function updatePlayer(deltaTime) {
       let dx = 0;
       let dy = 0;
@@ -333,6 +364,47 @@
       }
     }
 
+    // SHOOTING
+    function shootBall() {
+      const dx = ball.x - player.x;
+      const dy = ball.y - player.y;
+      const distance = Math.hypot(dx, dy);
+
+      const shootingRange =
+        player.radius + ball.radius + 18;
+
+      // The ball must be near the player.
+      if (distance > shootingRange) return;
+
+      let aimX;
+      let aimY;
+
+      if (distance > 0.001) {
+        // Shoot away from the player's position,
+        // through the ball's current location.
+        aimX = dx / distance;
+        aimY = dy / distance;
+      } else {
+        // If player and ball centers overlap,
+        // use the player's movement direction.
+        const speed = Math.hypot(player.vx, player.vy);
+
+        if (speed > 1) {
+          aimX = player.vx / speed;
+          aimY = player.vy / speed;
+        } else {
+          aimX = 1;
+          aimY = 0;
+        }
+      }
+
+      const shotPower = 480;
+
+      // A powerful shot that retains some player momentum.
+      ball.vx = aimX * shotPower + player.vx * 0.25;
+      ball.vy = aimY * shotPower + player.vy * 0.25;
+    }
+
     // BALL PHYSICS AND GOAL DETECTION
     function updateBall(deltaTime) {
       ball.x += ball.vx * deltaTime;
@@ -352,14 +424,17 @@
       const minY = field.y + ball.radius;
       const maxY = field.y + field.h - ball.radius;
 
-      const goalHeight = 112;
-      const goalTop = centerY - goalHeight / 2 + ball.radius;
-      const goalBottom = centerY + goalHeight / 2 - ball.radius;
+      // The ball must fit completely between the posts.
+      const goalTop =
+        centerY - GOAL_HEIGHT / 2 + ball.radius;
+
+      const goalBottom =
+        centerY + GOAL_HEIGHT / 2 - ball.radius;
 
       const insideGoalMouth =
         ball.y >= goalTop && ball.y <= goalBottom;
 
-      // Score only when the entire ball has crossed the goal line.
+      // Left goal: the whole ball has crossed the goal line.
       if (
         insideGoalMouth &&
         ball.x + ball.radius <= field.x
@@ -369,6 +444,7 @@
         return;
       }
 
+      // Right goal: the whole ball has crossed the goal line.
       if (
         insideGoalMouth &&
         ball.x - ball.radius >= field.x + field.w
@@ -378,7 +454,7 @@
         return;
       }
 
-      // Solid goal line outside the goal mouth.
+      // Goal lines block the ball outside the goal mouths.
       if (ball.x < minX && !insideGoalMouth) {
         ball.x = minX;
         ball.vx = Math.abs(ball.vx) * ball.restitution;
@@ -401,7 +477,7 @@
       }
     }
 
-    // HAXBALL-INSPIRED PLAYER-BALL CONTROL
+    // PLAYER-BALL COLLISION AND DRIBBLING
     function handlePlayerBallCollision() {
       const dx = ball.x - player.x;
       const dy = ball.y - player.y;
@@ -413,24 +489,24 @@
       const nx = distance > 0 ? dx / distance : 1;
       const ny = distance > 0 ? dy / distance : 0;
 
-      // Separate the player and ball so they do not overlap.
+      // Separate the player and ball.
       const overlap = minDistance - distance;
       ball.x += nx * overlap;
       ball.y += ny * overlap;
 
-      // Player velocity toward the ball.
-      const impactSpeed = player.vx * nx + player.vy * ny;
+      const impactSpeed =
+        player.vx * nx + player.vy * ny;
 
       if (impactSpeed > 0) {
-        // Transfer some of the player's movement to the ball.
         const kickStrength = 0.72;
 
         ball.vx += nx * impactSpeed * kickStrength;
         ball.vy += ny * impactSpeed * kickStrength;
 
-        // Slight sideways influence for smoother steering.
+        // Small sideways influence for smoother steering.
         const tangentX = -ny;
         const tangentY = nx;
+
         const sideSpeed =
           player.vx * tangentX + player.vy * tangentY;
 
@@ -438,13 +514,16 @@
         ball.vy += tangentY * sideSpeed * 0.12;
       }
 
-      // Allow the ball to cross either goal line.
-      const goalTop = centerY - 56 + ball.radius;
-      const goalBottom = centerY + 56 - ball.radius;
+      const goalTop =
+        centerY - GOAL_HEIGHT / 2 + ball.radius;
+
+      const goalBottom =
+        centerY + GOAL_HEIGHT / 2 - ball.radius;
 
       const inGoalMouth =
         ball.y >= goalTop && ball.y <= goalBottom;
 
+      // Let the ball cross either goal line.
       if (inGoalMouth) {
         ball.x = Math.max(
           field.x - ball.radius,
@@ -457,7 +536,6 @@
         );
       }
 
-      // Keep the ball inside the top and bottom boundaries.
       ball.y = Math.max(
         field.y + ball.radius,
         Math.min(field.y + field.h - ball.radius, ball.y)
@@ -476,11 +554,13 @@
       player.vy = 0;
 
       keys.clear();
+      shootRequested = false;
 
       document.getElementById("scoreboard").textContent =
         `BLUE ${state.leftScore} — ${state.rightScore} RED`;
     }
 
+    // GRASS
     function drawGrass() {
       const { x, y, w, h } = field;
 
@@ -508,7 +588,9 @@
           );
         }
       } else {
-        const maxRadius = Math.hypot(w / 2, h / 2) + 80;
+        const maxRadius =
+          Math.hypot(w / 2, h / 2) + 80;
+
         const step = 42;
         let index = 0;
 
@@ -557,10 +639,11 @@
       }
     }
 
+    // GOALS
     function drawGoal(side) {
       const { x, y, w, h } = field;
       const goalWidth = 35;
-      const goalHeight = 112;
+      const goalHeight = GOAL_HEIGHT;
       const goalY = y + (h - goalHeight) / 2;
 
       const goalX =
@@ -574,12 +657,24 @@
 
       for (let i = 1; i < 5; i++) {
         const netX = goalX + goalWidth * i / 5;
-        drawLine(netX, goalY, netX, goalY + goalHeight);
+
+        drawLine(
+          netX,
+          goalY,
+          netX,
+          goalY + goalHeight
+        );
       }
 
       for (let i = 1; i < 6; i++) {
         const netY = goalY + goalHeight * i / 6;
-        drawLine(goalX, netY, goalX + goalWidth, netY);
+
+        drawLine(
+          goalX,
+          netY,
+          goalX + goalWidth,
+          netY
+        );
       }
 
       ctx.strokeStyle = "#f4f5eb";
@@ -587,6 +682,7 @@
       ctx.strokeRect(goalX, goalY, goalWidth, goalHeight);
     }
 
+    // PITCH MARKINGS
     function drawMarkings() {
       const { x, y, w, h } = field;
 
@@ -681,12 +777,12 @@
       ctx.restore();
     }
 
+    // BALL DRAWING
     function drawBall() {
       const { x, y, radius } = ball;
 
       ctx.save();
 
-      // Ball shadow.
       ctx.beginPath();
       ctx.ellipse(
         x + 3,
@@ -700,13 +796,11 @@
       ctx.fillStyle = "#0005";
       ctx.fill();
 
-      // Ball body.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = "#f7f7f0";
       ctx.fill();
 
-      // Central pentagon.
       ctx.beginPath();
 
       for (let i = 0; i < 5; i++) {
@@ -734,12 +828,12 @@
       ctx.restore();
     }
 
+    // PLAYER DRAWING
     function drawPlayer() {
       const { x, y, radius, color } = player;
 
       ctx.save();
 
-      // Player shadow.
       ctx.beginPath();
       ctx.ellipse(
         x + 2,
@@ -753,13 +847,11 @@
       ctx.fillStyle = "#0005";
       ctx.fill();
 
-      // White outline.
       ctx.beginPath();
       ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
       ctx.fillStyle = "#f5f7f2";
       ctx.fill();
 
-      // Blue player body.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
@@ -785,6 +877,7 @@
       ctx.restore();
     }
 
+    // RENDER FRAME
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
@@ -811,6 +904,7 @@
       ctx.restore();
     }
 
+    // CAMERA AND GRASS OPTIONS
     function setOption(group, value) {
       state[group] = value;
 
@@ -846,6 +940,15 @@
       () => setOption("grass", "rings")
     );
 
+    // SHOOT BUTTON
+    document.getElementById("shoot").addEventListener(
+      "click",
+      () => {
+        shootRequested = true;
+      }
+    );
+
+    // MAIN GAME LOOP
     let previousTime = 0;
 
     function gameLoop(timestamp) {
@@ -857,6 +960,12 @@
 
       updatePlayer(deltaTime);
       handlePlayerBallCollision();
+
+      if (shootRequested) {
+        shootBall();
+        shootRequested = false;
+      }
+
       updateBall(deltaTime);
       draw();
 
