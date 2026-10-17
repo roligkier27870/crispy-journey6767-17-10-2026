@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -130,16 +130,6 @@
       color: white;
     }
 
-    #shoot {
-      background: #285f40;
-      border-color: #71bd8a;
-      font-weight: bold;
-    }
-
-    #shoot:hover {
-      background: #34784f;
-    }
-
     button:focus-visible {
       outline: 2px solid #a7efbd;
       outline-offset: 3px;
@@ -149,7 +139,7 @@
       margin: 12px 2px 0;
       color: #84969e;
       font-size: 12px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     @media (max-width: 600px) {
@@ -205,16 +195,13 @@
           <button id="stripes" aria-pressed="true">Stripes</button>
           <button id="rings" aria-pressed="false">Concentric</button>
         </div>
-
-        <div class="group">
-          <button id="shoot" type="button">⚽ SHOOT [SPACE]</button>
-        </div>
       </div>
     </section>
 
     <p class="note">
-      Controls: WASD or arrow keys to move. Press Space or click SHOOT
-      when the ball is nearby to take a powerful shot.
+      Controls: WASD to move. Arrow keys to aim independently.
+      Press Space to shoot when the ball is nearby.
+      Your aim stays in the last direction you selected.
     </p>
   </main>
 
@@ -265,13 +252,41 @@
     };
 
     const keys = new Set();
+    const aimKeys = new Set();
+
+    // The default aim direction is to the right.
+    // It stays active until another aim direction is selected.
+    let aimX = 1;
+    let aimY = 0;
 
     let shootRequested = false;
 
     const movementKeys = new Set([
-      "w", "a", "s", "d",
-      "arrowup", "arrowdown", "arrowleft", "arrowright"
+      "w", "a", "s", "d"
     ]);
+
+    const aimingKeys = new Set([
+      "arrowup",
+      "arrowdown",
+      "arrowleft",
+      "arrowright"
+    ]);
+
+    function updateAimFromKeys() {
+      let dx = 0;
+      let dy = 0;
+
+      if (aimKeys.has("arrowleft")) dx -= 1;
+      if (aimKeys.has("arrowright")) dx += 1;
+      if (aimKeys.has("arrowup")) dy -= 1;
+      if (aimKeys.has("arrowdown")) dy += 1;
+
+      if (dx !== 0 || dy !== 0) {
+        const length = Math.hypot(dx, dy);
+        aimX = dx / length;
+        aimY = dy / length;
+      }
+    }
 
     window.addEventListener("keydown", (event) => {
       const key = event.key.toLowerCase();
@@ -279,6 +294,12 @@
       if (movementKeys.has(key)) {
         event.preventDefault();
         keys.add(key);
+      }
+
+      if (aimingKeys.has(key)) {
+        event.preventDefault();
+        aimKeys.add(key);
+        updateAimFromKeys();
       }
 
       if (event.code === "Space") {
@@ -291,11 +312,24 @@
     });
 
     window.addEventListener("keyup", (event) => {
-      keys.delete(event.key.toLowerCase());
+      const key = event.key.toLowerCase();
+
+      keys.delete(key);
+
+      if (aimingKeys.has(key)) {
+        aimKeys.delete(key);
+
+        // If another aim key is still held, update the aim.
+        // Otherwise, preserve the last selected direction.
+        if (aimKeys.size > 0) {
+          updateAimFromKeys();
+        }
+      }
     });
 
     window.addEventListener("blur", () => {
       keys.clear();
+      aimKeys.clear();
       shootRequested = false;
     });
 
@@ -304,10 +338,10 @@
       let dx = 0;
       let dy = 0;
 
-      if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
-      if (keys.has("d") || keys.has("arrowright")) dx += 1;
-      if (keys.has("w") || keys.has("arrowup")) dy -= 1;
-      if (keys.has("s") || keys.has("arrowdown")) dy += 1;
+      if (keys.has("a")) dx -= 1;
+      if (keys.has("d")) dx += 1;
+      if (keys.has("w")) dy -= 1;
+      if (keys.has("s")) dy += 1;
 
       if (dx !== 0 || dy !== 0) {
         const length = Math.hypot(dx, dy);
@@ -376,31 +410,10 @@
       // The ball must be near the player.
       if (distance > shootingRange) return;
 
-      let aimX;
-      let aimY;
-
-      if (distance > 0.001) {
-        // Shoot away from the player's position,
-        // through the ball's current location.
-        aimX = dx / distance;
-        aimY = dy / distance;
-      } else {
-        // If player and ball centers overlap,
-        // use the player's movement direction.
-        const speed = Math.hypot(player.vx, player.vy);
-
-        if (speed > 1) {
-          aimX = player.vx / speed;
-          aimY = player.vy / speed;
-        } else {
-          aimX = 1;
-          aimY = 0;
-        }
-      }
-
       const shotPower = 480;
 
-      // A powerful shot that retains some player momentum.
+      // Shoot in the selected aim direction,
+      // independently of the player's movement.
       ball.vx = aimX * shotPower + player.vx * 0.25;
       ball.vy = aimY * shotPower + player.vy * 0.25;
     }
@@ -554,7 +567,10 @@
       player.vy = 0;
 
       keys.clear();
+      aimKeys.clear();
       shootRequested = false;
+
+      // Keep the current aim direction after a goal.
 
       document.getElementById("scoreboard").textContent =
         `BLUE ${state.leftScore} — ${state.rightScore} RED`;
@@ -940,14 +956,6 @@
       () => setOption("grass", "rings")
     );
 
-    // SHOOT BUTTON
-    document.getElementById("shoot").addEventListener(
-      "click",
-      () => {
-        shootRequested = true;
-      }
-    );
-
     // MAIN GAME LOOP
     let previousTime = 0;
 
@@ -976,3 +984,4 @@
   </script>
 </body>
 </html>
+```
