@@ -443,6 +443,7 @@
       markings();
       drawGoal("left");
       drawGoal("right");
+      drawBall();
 
       ctx.restore();
     }
@@ -487,6 +488,61 @@
       "click",
       () => setOption("grass", "rings")
     );
+
+
+function drawBall() {
+  const x = centerX;
+  const y = centerY;
+  const radius = 11;
+
+  ctx.save();
+
+  // Soft shadow beneath the ball
+  ctx.beginPath();
+  ctx.ellipse(
+    x + 3,
+    y + 5,
+    radius * 0.95,
+    radius * 0.7,
+    0,
+    0,
+    Math.PI * 2
+  );
+  ctx.fillStyle = "#0005";
+  ctx.fill();
+
+  // White football
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = "#f7f7f0";
+  ctx.fill();
+
+  // Dark center patch
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const angle = -Math.PI / 2 + i * Math.PI * 2 / 5;
+    const px = x + Math.cos(angle) * radius * 0.42;
+    const py = y + Math.sin(angle) * radius * 0.42;
+
+    if (i === 0) {
+      ctx.moveTo(px, py);
+    } else {
+      ctx.lineTo(px, py);
+    }
+  }
+  ctx.closePath();
+  ctx.fillStyle = "#252b2d";
+  ctx.fill();
+
+  // Fine outline
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = "#202629";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.restore();
+}
 
     draw();
   </script>
