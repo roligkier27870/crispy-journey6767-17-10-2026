@@ -201,11 +201,17 @@
       vy: 0
     };
 
-    const ball = {
-      x: centerX,
-      y: centerY,
-      radius: 11
+    
+  const ball = {
+     x: centerX,
+     y: centerY,
+     radius: 11,
+     vx: 0,
+     vy: 0,
+     friction: 1.8,
+     restitution: 0.75
     };
+
 
     // Tracks which movement keys are currently held.
     const keys = new Set();
@@ -304,6 +310,91 @@ function updatePlayer(deltaTime) {
 }
 
 
+function updateBall(deltaTime) {
+  // Move the ball using its current velocity.
+  ball.x += ball.vx * deltaTime;
+  ball.y += ball.vy * deltaTime;
+
+  // Gradually slow the ball down.
+  const drag = Math.exp(-ball.friction * deltaTime);
+  ball.vx *= drag;
+  ball.vy *= drag;
+
+  // Stop tiny movements to prevent endless drifting.
+  if (Math.hypot(ball.vx, ball.vy) < 2) {
+    ball.vx = 0;
+    ball.vy = 0;
+  }
+
+  // Bounce off the pitch boundaries.
+  const minX = field.x + ball.radius;
+  const maxX = field.x + field.w - ball.radius;
+  const minY = field.y + ball.radius;
+  const maxY = field.y + field.h - ball.radius;
+
+  if (ball.x < minX) {
+    ball.x = minX;
+    ball.vx = Math.abs(ball.vx) * ball.restitution;
+  }
+
+  if (ball.x > maxX) {
+    ball.x = maxX;
+    ball.vx = -Math.abs(ball.vx) * ball.restitution;
+  }
+
+  if (ball.y < minY) {
+    ball.y = minY;
+    ball.vy = Math.abs(ball.vy) * ball.restitution;
+  }
+
+  if (ball.y > maxY) {
+    ball.y = maxY;
+    ball.vy = -Math.abs(ball.vy) * ball.restitution;
+  }
+}
+
+    
+function handlePlayerBallCollision() {
+  const dx = ball.x - player.x;
+  const dy = ball.y - player.y;
+  const distance = Math.hypot(dx, dy);
+  const minDistance = player.radius + ball.radius;
+
+  // No collision if the two circles aren't touching.
+  if (distance >= minDistance) return;
+
+  // Calculate the direction from player to ball.
+  const nx = distance > 0 ? dx / distance : 1;
+  const ny = distance > 0 ? dy / distance : 0;
+
+  // Separate the overlapping circles.
+  const overlap = minDistance - distance;
+  ball.x += nx * overlap;
+  ball.y += ny * overlap;
+
+  // Transfer some player movement into the ball.
+  const impactSpeed = player.vx * nx + player.vy * ny;
+
+  if (impactSpeed > 0) {
+    const kickStrength = 1.25;
+
+    ball.vx += nx * impactSpeed * kickStrength;
+    ball.vy += ny * impactSpeed * kickStrength;
+  }
+
+  // Keep the ball inside the playable area after contact.
+  ball.x = Math.max(
+    field.x + ball.radius,
+    Math.min(field.x + field.w - ball.radius, ball.x)
+  );
+
+  ball.y = Math.max(
+    field.y + ball.radius,
+    Math.min(field.y + field.h - ball.radius, ball.y)
+  );
+}
+
+    
     function drawGrass() {
       const { x, y, w, h } = field;
 
@@ -598,6 +689,8 @@ function updatePlayer(deltaTime) {
       previousTime = timestamp;
 
       updatePlayer(deltaTime);
+      handlePlayerBallCollision();
+      updateBall(deltaTime);
       draw();
 
       requestAnimationFrame(gameLoop);
