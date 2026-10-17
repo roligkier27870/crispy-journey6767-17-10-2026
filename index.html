@@ -19,7 +19,7 @@
       font-family: Arial, sans-serif;
     }
 
-    .app { width: min(100%, 760px); }
+    .app { width: min(100%, 1000px); }
 
     header {
       display: flex;
@@ -50,11 +50,10 @@
     }
 
     .viewport {
+      width: 100%;
       overflow: hidden;
       border-radius: 5px;
       background: #216c3c;
-      margin: 0 auto;
-      max-width: 100%;
     }
 
     canvas {
@@ -102,7 +101,7 @@
 
     .note {
       margin: 12px 2px 0;
-      color: #84969e;
+      color: #a3b2b7;
       font-size: 12px;
       line-height: 1.6;
     }
@@ -114,6 +113,7 @@
     }
   </style>
 </head>
+
 <body>
   <main class="app">
     <header>
@@ -121,6 +121,7 @@
         <h1>KICKOFF <span class="accent">FOOTBALL</span></h1>
         <div class="subtitle">THE PITCH · PLAYER PREVIEW</div>
       </div>
+
       <div class="status">
         <div>● DEVELOPMENT</div>
         <div id="scoreboard" class="scoreboard">BLUE 0 — 0 RED</div>
@@ -130,7 +131,7 @@
     <section class="stadium">
       <div class="viewport">
         <canvas id="game" width="1200" height="760"
-          aria-label="Rotating football pitch with a movable blue player and ball"
+          aria-label="Horizontal football pitch with a blue player and ball"
           tabindex="0"></canvas>
       </div>
 
@@ -140,6 +141,7 @@
           <button id="full" aria-pressed="true">Wider view</button>
           <button id="zoom" aria-pressed="false">Closer view</button>
         </div>
+
         <div class="group">
           <span class="label">GRASS</span>
           <button id="stripes" aria-pressed="true">Stripes</button>
@@ -149,34 +151,32 @@
     </section>
 
     <p class="note">
-      Controls: WASD to move. Arrow keys to aim independently.
-      Press Space to shoot when the ball is nearby.
-      The camera follows the ball, with BLUE attacking toward the top of the screen.
+      Controls: WASD to move and face a direction. Space to shoot
+      toward the direction you're facing. The horizontal camera follows
+      the ball without rotating the pitch.
     </p>
   </main>
 
   <script>
+    // Canvas
     const canvas = document.getElementById("game");
     const ctx = canvas.getContext("2d");
 
     const W = canvas.width;
     const H = canvas.height;
 
-    // World coordinates stay unchanged; only the camera view rotates.
+    // World coordinates
     const field = { x: 80, y: 40, w: 1040, h: 680 };
     const centerX = field.x + field.w / 2;
     const centerY = field.y + field.h / 2;
     const GOAL_HEIGHT = 112;
+    const GOAL_WIDTH = 35;
 
     const state = {
       camera: "full",
       grass: "stripes",
       leftScore: 0,
-      rightScore: 0,
-
-      // BLUE attacks toward world-right, which the camera displays upward.
-      // When team possession/switching is added, this will follow the team.
-      attackDirection: 1
+      rightScore: 0
     };
 
     const player = {
@@ -186,7 +186,11 @@
       color: "#2587ff",
       speed: 120,
       vx: 0,
-      vy: 0
+      vy: 0,
+
+      // The player initially faces right.
+      facingX: 1,
+      facingY: 0
     };
 
     const ball = {
@@ -200,30 +204,11 @@
     };
 
     const keys = new Set();
-    const aimKeys = new Set();
-    let aimX = 1;
-    let aimY = 0;
     let shootRequested = false;
 
     const movementKeys = new Set(["w", "a", "s", "d"]);
-    const aimingKeys = new Set([
-      "arrowup", "arrowdown", "arrowleft", "arrowright"
-    ]);
 
-    function updateAimFromKeys() {
-      let dx = 0, dy = 0;
-      if (aimKeys.has("arrowleft")) dx--;
-      if (aimKeys.has("arrowright")) dx++;
-      if (aimKeys.has("arrowup")) dy--;
-      if (aimKeys.has("arrowdown")) dy++;
-
-      if (dx || dy) {
-        const length = Math.hypot(dx, dy);
-        aimX = dx / length;
-        aimY = dy / length;
-      }
-    }
-
+    // Controls: WASD to move and face; Space to shoot.
     window.addEventListener("keydown", event => {
       const key = event.key.toLowerCase();
 
@@ -232,50 +217,46 @@
         keys.add(key);
       }
 
-      if (aimingKeys.has(key)) {
-        event.preventDefault();
-        aimKeys.add(key);
-        updateAimFromKeys();
-      }
-
       if (event.code === "Space") {
         event.preventDefault();
-        if (!event.repeat) shootRequested = true;
+
+        if (!event.repeat) {
+          shootRequested = true;
+        }
       }
     });
 
     window.addEventListener("keyup", event => {
-      const key = event.key.toLowerCase();
-      keys.delete(key);
-
-      if (aimingKeys.has(key)) {
-        aimKeys.delete(key);
-        if (aimKeys.size) updateAimFromKeys();
-      }
+      keys.delete(event.key.toLowerCase());
     });
 
     window.addEventListener("blur", () => {
       keys.clear();
-      aimKeys.clear();
       shootRequested = false;
     });
 
     function updatePlayer(dt) {
-      let dx = 0, dy = 0;
+      let dx = 0;
+      let dy = 0;
+
       if (keys.has("a")) dx--;
       if (keys.has("d")) dx++;
       if (keys.has("w")) dy--;
       if (keys.has("s")) dy++;
 
+      // Normalize movement so diagonals aren't faster.
       if (dx || dy) {
         const length = Math.hypot(dx, dy);
         dx /= length;
         dy /= length;
+
+        // Facing follows the direction of input and persists after stopping.
+        player.facingX = dx;
+        player.facingY = dy;
       }
 
       const acceleration = 350;
       const friction = 5;
-      const maxSpeed = player.speed;
 
       if (dx || dy) {
         player.vx += dx * acceleration * dt;
@@ -287,9 +268,10 @@
       }
 
       const velocity = Math.hypot(player.vx, player.vy);
-      if (velocity > maxSpeed) {
-        player.vx = player.vx / velocity * maxSpeed;
-        player.vy = player.vy / velocity * maxSpeed;
+
+      if (velocity > player.speed) {
+        player.vx = player.vx / velocity * player.speed;
+        player.vy = player.vy / velocity * player.speed;
       }
 
       player.x += player.vx * dt;
@@ -304,14 +286,17 @@
         player.x = minX;
         player.vx = Math.max(0, player.vx);
       }
+
       if (player.x > maxX) {
         player.x = maxX;
         player.vx = Math.min(0, player.vx);
       }
+
       if (player.y < minY) {
         player.y = minY;
         player.vy = Math.max(0, player.vy);
       }
+
       if (player.y > maxY) {
         player.y = maxY;
         player.vy = Math.min(0, player.vy);
@@ -319,12 +304,39 @@
     }
 
     function shootBall() {
-      const distance = Math.hypot(ball.x - player.x, ball.y - player.y);
+      const distance = Math.hypot(
+        ball.x - player.x,
+        ball.y - player.y
+      );
+
       if (distance > player.radius + ball.radius + 18) return;
 
       const shotPower = 480;
-      ball.vx = aimX * shotPower + player.vx * 0.25;
-      ball.vy = aimY * shotPower + player.vy * 0.25;
+
+      // Shoot toward the direction the player is facing,
+      // regardless of their current velocity.
+      ball.vx = player.facingX * shotPower + player.vx * 0.15;
+      ball.vy = player.facingY * shotPower + player.vy * 0.15;
+    }
+
+    function resetAfterGoal() {
+      ball.x = centerX;
+      ball.y = centerY;
+      ball.vx = 0;
+      ball.vy = 0;
+
+      player.x = centerX - 125;
+      player.y = centerY;
+      player.vx = 0;
+      player.vy = 0;
+      player.facingX = 1;
+      player.facingY = 0;
+
+      keys.clear();
+      shootRequested = false;
+
+      document.getElementById("scoreboard").textContent =
+        `BLUE ${state.leftScore} — ${state.rightScore} RED`;
     }
 
     function updateBall(dt) {
@@ -349,12 +361,14 @@
       const goalBottom = centerY + GOAL_HEIGHT / 2 - ball.radius;
       const inGoalMouth = ball.y >= goalTop && ball.y <= goalBottom;
 
+      // Left goal: RED scores.
       if (inGoalMouth && ball.x + ball.radius <= field.x) {
         state.rightScore++;
         resetAfterGoal();
         return;
       }
 
+      // Right goal: BLUE scores.
       if (inGoalMouth && ball.x - ball.radius >= field.x + field.w) {
         state.leftScore++;
         resetAfterGoal();
@@ -406,7 +420,8 @@
 
         const tangentX = -ny;
         const tangentY = nx;
-        const sideSpeed = player.vx * tangentX + player.vy * tangentY;
+        const sideSpeed =
+          player.vx * tangentX + player.vy * tangentY;
 
         ball.vx += tangentX * sideSpeed * 0.12;
         ball.vy += tangentY * sideSpeed * 0.12;
@@ -434,25 +449,6 @@
       );
     }
 
-    function resetAfterGoal() {
-      ball.x = centerX;
-      ball.y = centerY;
-      ball.vx = 0;
-      ball.vy = 0;
-
-      player.x = centerX - 125;
-      player.y = centerY;
-      player.vx = 0;
-      player.vy = 0;
-
-      keys.clear();
-      aimKeys.clear();
-      shootRequested = false;
-
-      document.getElementById("scoreboard").textContent =
-        `BLUE ${state.leftScore} — ${state.rightScore} RED`;
-    }
-
     function drawGrass() {
       const { x, y, w, h } = field;
 
@@ -470,7 +466,9 @@
 
         for (let i = 0; i < count; i++) {
           ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
-          ctx.fillRect(x + i * stripeWidth, y, stripeWidth + 0.5, h);
+          ctx.fillRect(
+            x + i * stripeWidth, y, stripeWidth + 0.5, h
+          );
         }
       } else {
         const maxRadius = Math.hypot(w / 2, h / 2) + 80;
@@ -501,34 +499,35 @@
     function drawCircle(x, y, radius, fill = false) {
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
+
       if (fill) ctx.fill();
       else ctx.stroke();
     }
 
     function drawGoal(side) {
       const { x, y, w, h } = field;
-      const goalWidth = 35;
       const goalY = y + (h - GOAL_HEIGHT) / 2;
-      const goalX = side === "left" ? x - goalWidth : x + w;
+      const goalX = side === "left" ? x - GOAL_WIDTH : x + w;
 
       ctx.fillStyle = "#dbe9dd22";
-      ctx.fillRect(goalX, goalY, goalWidth, GOAL_HEIGHT);
+      ctx.fillRect(goalX, goalY, GOAL_WIDTH, GOAL_HEIGHT);
+
       ctx.strokeStyle = "#dce6df99";
       ctx.lineWidth = 1;
 
       for (let i = 1; i < 5; i++) {
-        const nx = goalX + goalWidth * i / 5;
+        const nx = goalX + GOAL_WIDTH * i / 5;
         drawLine(nx, goalY, nx, goalY + GOAL_HEIGHT);
       }
 
       for (let i = 1; i < 6; i++) {
         const ny = goalY + GOAL_HEIGHT * i / 6;
-        drawLine(goalX, ny, goalX + goalWidth, ny);
+        drawLine(goalX, ny, goalX + GOAL_WIDTH, ny);
       }
 
       ctx.strokeStyle = "#f4f5eb";
       ctx.lineWidth = 4;
-      ctx.strokeRect(goalX, goalY, goalWidth, GOAL_HEIGHT);
+      ctx.strokeRect(goalX, goalY, GOAL_WIDTH, GOAL_HEIGHT);
     }
 
     function drawMarkings() {
@@ -569,11 +568,16 @@
         drawCircle(spotX, centerY, 4, true);
 
         ctx.beginPath();
+
         if (isLeft) {
           ctx.arc(spotX, centerY, 91, -0.88, 0.88);
         } else {
-          ctx.arc(spotX, centerY, 91, Math.PI - 0.88, Math.PI + 0.88);
+          ctx.arc(
+            spotX, centerY, 91,
+            Math.PI - 0.88, Math.PI + 0.88
+          );
         }
+
         ctx.stroke();
       }
 
@@ -586,7 +590,10 @@
       ctx.save();
 
       ctx.beginPath();
-      ctx.ellipse(x + 3, y + 5, radius * 0.95, radius * 0.7, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        x + 3, y + 5, radius * 0.95, radius * 0.7,
+        0, 0, Math.PI * 2
+      );
       ctx.fillStyle = "#0005";
       ctx.fill();
 
@@ -596,13 +603,16 @@
       ctx.fill();
 
       ctx.beginPath();
+
       for (let i = 0; i < 5; i++) {
         const angle = -Math.PI / 2 + i * Math.PI * 2 / 5;
         const px = x + Math.cos(angle) * radius * 0.42;
         const py = y + Math.sin(angle) * radius * 0.42;
+
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
+
       ctx.closePath();
       ctx.fillStyle = "#252b2d";
       ctx.fill();
@@ -621,22 +631,30 @@
 
       ctx.save();
 
+      // Player shadow
       ctx.beginPath();
-      ctx.ellipse(x + 2, y + 4, radius + 1, radius * 0.8, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        x + 2, y + 4, radius + 1, radius * 0.8,
+        0, 0, Math.PI * 2
+      );
       ctx.fillStyle = "#0005";
       ctx.fill();
 
+      // White outer ring
       ctx.beginPath();
       ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
       ctx.fillStyle = "#f5f7f2";
       ctx.fill();
 
+      // Blue body
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
       const gradient = ctx.createRadialGradient(
-        x - radius * 0.35, y - radius * 0.4, 1, x, y, radius
+        x - radius * 0.35, y - radius * 0.4,
+        1, x, y, radius
       );
+
       gradient.addColorStop(0, "#62b0ff");
       gradient.addColorStop(1, color);
 
@@ -646,24 +664,65 @@
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
+      // Small white pointer shows which way the player is facing.
+      const angle = Math.atan2(player.facingY, player.facingX);
+
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+
+      ctx.beginPath();
+      ctx.moveTo(radius + 7, 0);
+      ctx.lineTo(radius - 1, -4);
+      ctx.lineTo(radius - 1, 4);
+      ctx.closePath();
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+
       ctx.restore();
     }
 
-    // The world is drawn in its original coordinates.
-    // The camera transformation affects rendering only, not physics.
+    // Camera stays horizontal and follows the ball.
     function draw() {
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = "#1c292b";
       ctx.fillRect(0, 0, W, H);
 
-      const scale = state.camera === "zoom" ? 0.96 : 0.70;
+      // Wide view shows the whole pitch.
+      // Closer view follows the ball more tightly.
+      const scale = state.camera === "zoom" ? 1.15 : 0.90;
+
+      const viewW = W / scale;
+      const viewH = H / scale;
+
+      // Include the goals in the camera's horizontal world bounds.
+      const worldLeft = field.x - GOAL_WIDTH - 4;
+      const worldRight = field.x + field.w + GOAL_WIDTH + 4;
+
+      let cameraX;
+      let cameraY;
+
+      if (viewW >= worldRight - worldLeft) {
+        cameraX = (worldLeft + worldRight) / 2;
+      } else {
+        cameraX = Math.max(
+          worldLeft + viewW / 2,
+          Math.min(worldRight - viewW / 2, ball.x)
+        );
+      }
+
+      if (viewH >= field.h) {
+        cameraY = centerY;
+      } else {
+        cameraY = Math.max(
+          field.y + viewH / 2,
+          Math.min(field.y + field.h - viewH / 2, ball.y)
+        );
+      }
 
       ctx.save();
       ctx.translate(W / 2, H / 2);
       ctx.scale(scale, scale);
-      
-      // Center the view on the ball so it stays in view during play.
-      ctx.translate(-ball.x, -ball.y);
+      ctx.translate(-cameraX, -cameraY);
 
       drawGrass();
       drawMarkings();
@@ -684,7 +743,8 @@
 
       for (const id of ids) {
         document.getElementById(id).setAttribute(
-          "aria-pressed", String(id === value)
+          "aria-pressed",
+          String(id === value)
         );
       }
     }
