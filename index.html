@@ -42,13 +42,17 @@
       letter-spacing: -1px;
     }
 
+    .accent {
+      color: #80d69a;
+    }
+
     .subtitle {
       margin-top: 6px;
       color: #9eafb5;
       font-size: 13px;
     }
 
-    .live {
+    .status {
       color: #a7efbd;
       font-size: 11px;
       letter-spacing: 2px;
@@ -118,6 +122,11 @@
       color: white;
     }
 
+    button:focus-visible {
+      outline: 2px solid #a7efbd;
+      outline-offset: 3px;
+    }
+
     .note {
       margin: 12px 2px 0;
       color: #84969e;
@@ -145,10 +154,11 @@
   <main class="app">
     <header>
       <div>
-        <h1>KICKOFF <span style="color:#80d69a">FOOTBALL</span></h1>
-        <div class="subtitle">THE PITCH · VISUAL PREVIEW</div>
+        <h1>KICKOFF <span class="accent">FOOTBALL</span></h1>
+        <div class="subtitle">THE PITCH · PLAYER PREVIEW</div>
       </div>
-      <div class="live">● PITCH DESIGN</div>
+
+      <div class="status">● DEVELOPMENT</div>
     </header>
 
     <section class="stadium">
@@ -157,7 +167,7 @@
           id="pitch"
           width="1200"
           height="760"
-          aria-label="Top-down football pitch preview"
+          aria-label="Football pitch with one blue player and a ball"
         ></canvas>
       </div>
 
@@ -177,8 +187,7 @@
     </section>
 
     <p class="note">
-      Visual preview only. Choose a camera and grass pattern to compare
-      the pitch presentation.
+      Visual preview · Player and ball are stationary for now.
     </p>
   </main>
 
@@ -204,7 +213,22 @@
       grass: "stripes"
     };
 
-    function grass() {
+    // Our first player.
+    const player = {
+      x: centerX - 125,
+      y: centerY,
+      radius: 12,
+      color: "#2587ff"
+    };
+
+    // Stationary football at the center spot.
+    const ball = {
+      x: centerX,
+      y: centerY,
+      radius: 11
+    };
+
+    function drawGrass() {
       const { x, y, w, h } = field;
 
       ctx.save();
@@ -232,10 +256,9 @@
           );
         }
       } else {
-        // Nested ellipses create alternating concentric bands.
+        // Alternating elliptical bands.
         const maxRadius = Math.hypot(w / 2, h / 2) + 80;
         const step = 42;
-
         let index = 0;
 
         for (
@@ -266,14 +289,14 @@
       ctx.restore();
     }
 
-    function line(x1, y1, x2, y2) {
+    function drawLine(x1, y1, x2, y2) {
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.stroke();
     }
 
-    function circle(x, y, radius, fill = false) {
+    function drawCircle(x, y, radius, fill = false) {
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
@@ -288,36 +311,37 @@
       const { x, y, w, h } = field;
       const goalWidth = 35;
       const goalHeight = 112;
-      const gy = y + (h - goalHeight) / 2;
+      const goalY = y + (h - goalHeight) / 2;
 
-      const gx = side === "left"
+      const goalX = side === "left"
         ? x - goalWidth
         : x + w;
 
-      // Subtle net shading.
+      // Net background.
       ctx.fillStyle = "#dbe9dd22";
-      ctx.fillRect(gx, gy, goalWidth, goalHeight);
+      ctx.fillRect(goalX, goalY, goalWidth, goalHeight);
 
+      // Net mesh.
       ctx.strokeStyle = "#dce6df99";
       ctx.lineWidth = 1;
 
       for (let i = 1; i < 5; i++) {
-        const nx = gx + (goalWidth * i) / 5;
-        line(nx, gy, nx, gy + goalHeight);
+        const netX = goalX + goalWidth * i / 5;
+        drawLine(netX, goalY, netX, goalY + goalHeight);
       }
 
       for (let i = 1; i < 6; i++) {
-        const ny = gy + (goalHeight * i) / 6;
-        line(gx, ny, gx + goalWidth, ny);
+        const netY = goalY + goalHeight * i / 6;
+        drawLine(goalX, netY, goalX + goalWidth, netY);
       }
 
       // Goal frame.
       ctx.strokeStyle = "#f4f5eb";
       ctx.lineWidth = 4;
-      ctx.strokeRect(gx, gy, goalWidth, goalHeight);
+      ctx.strokeRect(goalX, goalY, goalWidth, goalHeight);
     }
 
-    function markings() {
+    function drawMarkings() {
       const { x, y, w, h } = field;
 
       ctx.save();
@@ -325,21 +349,20 @@
       ctx.fillStyle = "#f3f5e9";
       ctx.lineWidth = 3;
 
-      // Main boundary.
+      // Outer boundary and halfway line.
       ctx.strokeRect(x, y, w, h);
+      drawLine(centerX, y, centerX, y + h);
 
-      // Halfway line and center circle.
-      line(centerX, y, centerX, y + h);
-      circle(centerX, centerY, 91);
-      circle(centerX, centerY, 4, true);
+      // Center circle and spot.
+      drawCircle(centerX, centerY, 91);
+      drawCircle(centerX, centerY, 4, true);
 
       const penaltyDepth = 165;
       const penaltyHeight = 360;
       const goalAreaDepth = 62;
       const goalAreaHeight = 190;
       const spotDistance = 110;
-      const spotRadius = 4;
-      const penaltyRadius = 91;
+      const penaltyArcRadius = 91;
 
       for (const side of ["left", "right"]) {
         const leftSide = side === "left";
@@ -352,21 +375,16 @@
           ? x
           : x + w - goalAreaDepth;
 
-        const boxY = centerY - penaltyHeight / 2;
-        const goalBoxY = centerY - goalAreaHeight / 2;
-
-        // Penalty area.
         ctx.strokeRect(
           boxX,
-          boxY,
+          centerY - penaltyHeight / 2,
           penaltyDepth,
           penaltyHeight
         );
 
-        // Six-yard box.
         ctx.strokeRect(
           goalBoxX,
-          goalBoxY,
+          centerY - goalAreaHeight / 2,
           goalAreaDepth,
           goalAreaHeight
         );
@@ -375,16 +393,16 @@
           ? x + spotDistance
           : x + w - spotDistance;
 
-        circle(spotX, centerY, spotRadius, true);
+        drawCircle(spotX, centerY, 4, true);
 
-        // Penalty arc, with the part inside the box omitted.
+        // The visible penalty arc.
         ctx.beginPath();
 
         if (leftSide) {
           ctx.arc(
             spotX,
             centerY,
-            penaltyRadius,
+            penaltyArcRadius,
             -0.88,
             0.88
           );
@@ -392,7 +410,7 @@
           ctx.arc(
             spotX,
             centerY,
-            penaltyRadius,
+            penaltyArcRadius,
             Math.PI - 0.88,
             Math.PI + 0.88
           );
@@ -407,11 +425,9 @@
 
         if (leftSide) {
           ctx.arc(x, y, r, 0, Math.PI / 2);
-          ctx.moveTo(x, y + h - r);
           ctx.arc(x, y + h, r, -Math.PI / 2, 0);
         } else {
           ctx.arc(x + w, y, r, Math.PI / 2, Math.PI);
-          ctx.moveTo(x + w - r, y + h);
           ctx.arc(x + w, y + h, r, Math.PI, Math.PI * 1.5);
         }
 
@@ -421,16 +437,122 @@
       ctx.restore();
     }
 
+    function drawBall() {
+      const { x, y, radius } = ball;
+
+      ctx.save();
+
+      // Soft shadow.
+      ctx.beginPath();
+      ctx.ellipse(
+        x + 3,
+        y + 5,
+        radius * 0.95,
+        radius * 0.7,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fillStyle = "#0005";
+      ctx.fill();
+
+      // White ball.
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "#f7f7f0";
+      ctx.fill();
+
+      // Central black pentagon.
+      ctx.beginPath();
+
+      for (let i = 0; i < 5; i++) {
+        const angle = -Math.PI / 2 + i * Math.PI * 2 / 5;
+        const px = x + Math.cos(angle) * radius * 0.42;
+        const py = y + Math.sin(angle) * radius * 0.42;
+
+        if (i === 0) {
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+
+      ctx.closePath();
+      ctx.fillStyle = "#252b2d";
+      ctx.fill();
+
+      // Ball outline.
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = "#202629";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    function drawPlayer() {
+      const { x, y, radius, color } = player;
+
+      ctx.save();
+
+      // Soft shadow beneath the player marker.
+      ctx.beginPath();
+      ctx.ellipse(
+        x + 2,
+        y + 4,
+        radius + 1,
+        radius * 0.8,
+        0,
+        0,
+        Math.PI * 2
+      );
+      ctx.fillStyle = "#0005";
+      ctx.fill();
+
+      // Light outer ring.
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
+      ctx.fillStyle = "#f5f7f2";
+      ctx.fill();
+
+      // Blue circular body.
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+
+      const gradient = ctx.createRadialGradient(
+        x - radius * 0.35,
+        y - radius * 0.4,
+        1,
+        x,
+        y,
+        radius
+      );
+
+      gradient.addColorStop(0, "#62b0ff");
+      gradient.addColorStop(1, color);
+
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Thin dark outline.
+      ctx.strokeStyle = "#174d91";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
-      // Dark surround outside the playing surface.
+      // Stadium surround.
       ctx.fillStyle = "#1c292b";
       ctx.fillRect(0, 0, W, H);
 
       ctx.save();
 
-      // Zoom around the center of the pitch.
+      // Zoom around the center of the field.
       if (state.camera === "zoom") {
         const zoom = 1.22;
 
@@ -439,10 +561,13 @@
         ctx.translate(-centerX, -centerY);
       }
 
-      grass();
-      markings();
+      drawGrass();
+      drawMarkings();
       drawGoal("left");
       drawGoal("right");
+
+      // Draw the player before the ball so the ball stays visible.
+      drawPlayer();
       drawBall();
 
       ctx.restore();
@@ -455,14 +580,10 @@
         ? ["full", "zoom"]
         : ["stripes", "rings"];
 
-      const selectedId = group === "camera"
-        ? value
-        : value;
-
       for (const id of ids) {
         document.getElementById(id).setAttribute(
           "aria-pressed",
-          String(id === selectedId)
+          String(id === value)
         );
       }
 
@@ -488,61 +609,6 @@
       "click",
       () => setOption("grass", "rings")
     );
-
-
-function drawBall() {
-  const x = centerX;
-  const y = centerY;
-  const radius = 11;
-
-  ctx.save();
-
-  // Soft shadow beneath the ball
-  ctx.beginPath();
-  ctx.ellipse(
-    x + 3,
-    y + 5,
-    radius * 0.95,
-    radius * 0.7,
-    0,
-    0,
-    Math.PI * 2
-  );
-  ctx.fillStyle = "#0005";
-  ctx.fill();
-
-  // White football
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = "#f7f7f0";
-  ctx.fill();
-
-  // Dark center patch
-  ctx.beginPath();
-  for (let i = 0; i < 5; i++) {
-    const angle = -Math.PI / 2 + i * Math.PI * 2 / 5;
-    const px = x + Math.cos(angle) * radius * 0.42;
-    const py = y + Math.sin(angle) * radius * 0.42;
-
-    if (i === 0) {
-      ctx.moveTo(px, py);
-    } else {
-      ctx.lineTo(px, py);
-    }
-  }
-  ctx.closePath();
-  ctx.fillStyle = "#252b2d";
-  ctx.fill();
-
-  // Fine outline
-  ctx.beginPath();
-  ctx.arc(x, y, radius, 0, Math.PI * 2);
-  ctx.strokeStyle = "#202629";
-  ctx.lineWidth = 1;
-  ctx.stroke();
-
-  ctx.restore();
-}
 
     draw();
   </script>
