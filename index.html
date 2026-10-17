@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kickoff Football</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: #101820;
+      font-family: Arial, sans-serif;
+    }
+
+    .stadium {
+      width: min(94vw, 1100px);
+      padding: 12px;
+      background: #26343b;
+      border: 1px solid #41515a;
+      border-radius: 12px;
+      box-shadow: 0 18px 50px #0006;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="stadium">
+    <canvas id="pitch" width="1000" height="600"></canvas>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("pitch");
+    const ctx = canvas.getContext("2d");
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const margin = 28;
+
+    function drawPitch() {
+      // Grass
+      ctx.fillStyle = "#237b43";
+      ctx.fillRect(0, 0, W, H);
+
+      // Alternating grass stripes
+      const stripeWidth = (W - margin * 2) / 10;
+
+      for (let i = 0; i < 10; i++) {
+        if (i % 2 === 0) {
+          ctx.fillStyle = "#2c894b";
+          ctx.fillRect(
+            margin + i * stripeWidth,
+            margin,
+            stripeWidth,
+            H - margin * 2
+          );
+        }
+      }
+
+      // White pitch markings
+      ctx.strokeStyle = "#f4f7ef";
+      ctx.lineWidth = 3;
+
+      ctx.strokeRect(
+        margin,
+        margin,
+        W - margin * 2,
+        H - margin * 2
+      );
+
+      // Halfway line
+      ctx.beginPath();
+      ctx.moveTo(W / 2, margin);
+      ctx.lineTo(W / 2, H - margin);
+      ctx.stroke();
+
+      // Center circle
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 75, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Center spot
+      ctx.fillStyle = "#f4f7ef";
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Penalty and goal areas on both sides
+      const boxDepth = 125;
+      const boxHeight = 250;
+      const goalDepth = 48;
+      const goalHeight = 130;
+
+      for (const side of ["left", "right"]) {
+        const x = side === "left"
+          ? margin
+          : W - margin - boxDepth;
+
+        const goalX = side === "left"
+          ? margin - goalDepth
+          : W - margin;
+
+        // Penalty area
+        ctx.strokeRect(
+          x,
+          (H - boxHeight) / 2,
+          boxDepth,
+          boxHeight
+        );
+
+        // Goal area
+        const sixY = (H - 120) / 2;
+
+        ctx.strokeRect(
+          side === "left" ? margin : W - margin - 55,
+          sixY,
+          55,
+          120
+        );
+
+        // Goal frame
+        ctx.strokeRect(
+          goalX,
+          (H - goalHeight) / 2,
+          goalDepth,
+          goalHeight
+        );
+
+        // Penalty spot
+        const spotX = side === "left"
+          ? margin + 82
+          : W - margin - 82;
+
+        ctx.fillStyle = "#f4f7ef";
+        ctx.beginPath();
+        ctx.arc(spotX, H / 2, 4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    drawPitch();
+  </script>
+</body>
+</html>
