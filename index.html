@@ -232,7 +232,7 @@
       y: centerY,
       radius: 12,
       color: "#2587ff",
-      speed: 90,
+      speed: 120,
       vx: 0,
       vy: 0
     };
@@ -333,66 +333,75 @@
       }
     }
 
-    function updateBall(deltaTime) {
-      ball.x += ball.vx * deltaTime;
-      ball.y += ball.vy * deltaTime;
+    
+function updateBall(deltaTime) {
+  ball.x += ball.vx * deltaTime;
+  ball.y += ball.vy * deltaTime;
 
-      const drag = Math.exp(-ball.friction * deltaTime);
-      ball.vx *= drag;
-      ball.vy *= drag;
+  const drag = Math.exp(-ball.friction * deltaTime);
+  ball.vx *= drag;
+  ball.vy *= drag;
 
-      if (Math.hypot(ball.vx, ball.vy) < 2) {
-        ball.vx = 0;
-        ball.vy = 0;
-      }
+  if (Math.hypot(ball.vx, ball.vy) < 2) {
+    ball.vx = 0;
+    ball.vy = 0;
+  }
 
-      const minX = field.x + ball.radius;
-      const maxX = field.x + field.w - ball.radius;
-      const minY = field.y + ball.radius;
-      const maxY = field.y + field.h - ball.radius;
+  const minX = field.x + ball.radius;
+  const maxX = field.x + field.w - ball.radius;
+  const minY = field.y + ball.radius;
+  const maxY = field.y + field.h - ball.radius;
 
-      const goalHeight = 112;
-      const goalTop = centerY - goalHeight / 2 + ball.radius;
-      const goalBottom = centerY + goalHeight / 2 - ball.radius;
+  const goalHeight = 112;
+  const goalTop = centerY - goalHeight / 2 + ball.radius;
+  const goalBottom = centerY + goalHeight / 2 - ball.radius;
 
-      const insideGoalMouth =
-        ball.y >= goalTop && ball.y <= goalBottom;
+  const insideGoalMouth =
+    ball.y >= goalTop && ball.y <= goalBottom;
 
-      // Ball crosses the left goal line: red team scores.
-      if (ball.x <= minX && insideGoalMouth) {
-        state.rightScore++;
-        resetAfterGoal();
-        return;
-      }
+  // Score only when the ENTIRE ball has crossed the goal line.
+  if (
+    insideGoalMouth &&
+    ball.x + ball.radius <= field.x
+  ) {
+    state.rightScore++;
+    resetAfterGoal();
+    return;
+  }
 
-      // Ball crosses the right goal line: blue team scores.
-      if (ball.x >= maxX && insideGoalMouth) {
-        state.leftScore++;
-        resetAfterGoal();
-        return;
-      }
+  if (
+    insideGoalMouth &&
+    ball.x - ball.radius >= field.x + field.w
+  ) {
+    state.leftScore++;
+    resetAfterGoal();
+    return;
+  }
 
-      // Bounce off the pitch boundary outside the goal opening.
-      if (ball.x < minX) {
-        ball.x = minX;
-        ball.vx = Math.abs(ball.vx) * ball.restitution;
-      }
+  // Allow the ball to enter either goal mouth.
+  // Outside the openings, the goal line remains solid.
+  if (ball.x < minX && !insideGoalMouth) {
+    ball.x = minX;
+    ball.vx = Math.abs(ball.vx) * ball.restitution;
+  }
 
-      if (ball.x > maxX) {
-        ball.x = maxX;
-        ball.vx = -Math.abs(ball.vx) * ball.restitution;
-      }
+  if (ball.x > maxX && !insideGoalMouth) {
+    ball.x = maxX;
+    ball.vx = -Math.abs(ball.vx) * ball.restitution;
+  }
 
-      if (ball.y < minY) {
-        ball.y = minY;
-        ball.vy = Math.abs(ball.vy) * ball.restitution;
-      }
+  // Touchline collisions.
+  if (ball.y < minY) {
+    ball.y = minY;
+    ball.vy = Math.abs(ball.vy) * ball.restitution;
+  }
 
-      if (ball.y > maxY) {
-        ball.y = maxY;
-        ball.vy = -Math.abs(ball.vy) * ball.restitution;
-      }
-    }
+  if (ball.y > maxY) {
+    ball.y = maxY;
+    ball.vy = -Math.abs(ball.vy) * ball.restitution;
+  }
+}
+
 
     function handlePlayerBallCollision() {
       const dx = ball.x - player.x;
@@ -419,16 +428,32 @@
         ball.vy += ny * impactSpeed * kickStrength;
       }
 
-      ball.x = Math.max(
-        field.x + ball.radius,
-        Math.min(field.x + field.w - ball.radius, ball.x)
-      );
+     const goalTop = centerY - 56 + ball.radius;
+const goalBottom = centerY + 56 - ball.radius;
 
-      ball.y = Math.max(
-        field.y + ball.radius,
-        Math.min(field.y + field.h - ball.radius, ball.y)
-      );
-    }
+const inGoalMouth =
+  ball.y >= goalTop &&
+  ball.y <= goalBottom;
+
+if (inGoalMouth) {
+  // Let the ball pass through either goal mouth
+  ball.x = Math.max(
+    field.x - ball.radius,
+    Math.min(field.x + field.w + ball.radius, ball.x)
+  );
+} else {
+  // Keep the ball inside the field horizontally
+  ball.x = Math.max(
+    field.x + ball.radius,
+    Math.min(field.x + field.w - ball.radius, ball.x)
+  );
+}
+
+// Keep the ball inside the field vertically
+ball.y = Math.max(
+  field.y + ball.radius,
+  Math.min(field.y + field.h - ball.radius, ball.y)
+);
 
     function resetAfterGoal() {
       ball.x = centerX;
