@@ -129,7 +129,7 @@
 
     <section class="stadium">
       <div class="viewport">
-        <canvas id="pitch" width="760" height="1200"
+        <canvas id="game" width="1200" height="760"
           aria-label="Rotating football pitch with a movable blue player and ball"
           tabindex="0"></canvas>
       </div>
@@ -661,10 +661,7 @@
       ctx.save();
       ctx.translate(W / 2, H / 2);
       ctx.scale(scale, scale);
-
-      // Rotate the pitch so BLUE's world-right attack points upward.
-      ctx.rotate(-Math.PI / 2 * state.attackDirection);
-
+      
       // Center the view on the ball so it stays in view during play.
       ctx.translate(-ball.x, -ball.y);
 
