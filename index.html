@@ -7,9 +7,7 @@
   <title>Kickoff Football</title>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -17,15 +15,12 @@
       padding: 28px 16px;
       display: grid;
       place-items: center;
-      background:
-        radial-gradient(ellipse at top, #263640, #10171d 70%);
+      background: radial-gradient(ellipse at top, #263640, #10171d 70%);
       color: #edf3f0;
       font-family: Arial, sans-serif;
     }
 
-    .app {
-      width: min(100%, 1120px);
-    }
+    .app { width: min(100%, 1120px); }
 
     header {
       display: flex;
@@ -42,9 +37,7 @@
       letter-spacing: -1px;
     }
 
-    .accent {
-      color: #80d69a;
-    }
+    .accent { color: #80d69a; }
 
     .subtitle {
       margin-top: 6px;
@@ -77,6 +70,7 @@
       display: block;
       width: 100%;
       height: auto;
+      outline: none;
     }
 
     .controls {
@@ -112,9 +106,7 @@
       transition: background 120ms, border-color 120ms;
     }
 
-    button:hover {
-      border-color: #91c7a0;
-    }
+    button:hover { border-color: #91c7a0; }
 
     button[aria-pressed="true"] {
       background: #285f40;
@@ -135,17 +127,9 @@
     }
 
     @media (max-width: 600px) {
-      body {
-        padding: 18px 10px;
-      }
-
-      .stadium {
-        padding: 6px;
-      }
-
-      .controls {
-        align-items: flex-start;
-      }
+      body { padding: 18px 10px; }
+      .stadium { padding: 6px; }
+      .controls { align-items: flex-start; }
     }
   </style>
 </head>
@@ -157,7 +141,6 @@
         <h1>KICKOFF <span class="accent">FOOTBALL</span></h1>
         <div class="subtitle">THE PITCH · PLAYER PREVIEW</div>
       </div>
-
       <div class="status">● DEVELOPMENT</div>
     </header>
 
@@ -167,7 +150,8 @@
           id="pitch"
           width="1200"
           height="760"
-          aria-label="Football pitch with one blue player and a ball"
+          aria-label="Football pitch with a movable blue player and a ball"
+          tabindex="0"
         ></canvas>
       </div>
 
@@ -187,7 +171,7 @@
     </section>
 
     <p class="note">
-      Visual preview · Player and ball are stationary for now.
+      Controls: WASD or arrow keys to move. The ball is stationary for now.
     </p>
   </main>
 
@@ -198,13 +182,7 @@
     const W = canvas.width;
     const H = canvas.height;
 
-    const field = {
-      x: 80,
-      y: 40,
-      w: 1040,
-      h: 680
-    };
-
+    const field = { x: 80, y: 40, w: 1040, h: 680 };
     const centerX = field.x + field.w / 2;
     const centerY = field.y + field.h / 2;
 
@@ -213,20 +191,75 @@
       grass: "stripes"
     };
 
-    // Our first player.
     const player = {
       x: centerX - 125,
       y: centerY,
       radius: 12,
-      color: "#2587ff"
+      color: "#2587ff",
+      speed: 230
     };
 
-    // Stationary football at the center spot.
     const ball = {
       x: centerX,
       y: centerY,
       radius: 11
     };
+
+    // Tracks which movement keys are currently held.
+    const keys = new Set();
+
+    const movementKeys = new Set([
+      "w", "a", "s", "d",
+      "arrowup", "arrowdown", "arrowleft", "arrowright"
+    ]);
+
+    window.addEventListener("keydown", (event) => {
+      const key = event.key.toLowerCase();
+
+      if (movementKeys.has(key)) {
+        // Stop arrow keys from scrolling the page.
+        event.preventDefault();
+        keys.add(key);
+      }
+    });
+
+    window.addEventListener("keyup", (event) => {
+      keys.delete(event.key.toLowerCase());
+    });
+
+    // Avoid a stuck movement key if the browser loses focus.
+    window.addEventListener("blur", () => keys.clear());
+
+    function updatePlayer(deltaTime) {
+      let dx = 0;
+      let dy = 0;
+
+      if (keys.has("a") || keys.has("arrowleft")) dx -= 1;
+      if (keys.has("d") || keys.has("arrowright")) dx += 1;
+      if (keys.has("w") || keys.has("arrowup")) dy -= 1;
+      if (keys.has("s") || keys.has("arrowdown")) dy += 1;
+
+      // Normalize diagonal movement so it isn't faster.
+      if (dx !== 0 || dy !== 0) {
+        const length = Math.hypot(dx, dy);
+        dx /= length;
+        dy /= length;
+      }
+
+      player.x += dx * player.speed * deltaTime;
+      player.y += dy * player.speed * deltaTime;
+
+      // Keep the whole player marker inside the pitch.
+      player.x = Math.max(
+        field.x + player.radius,
+        Math.min(field.x + field.w - player.radius, player.x)
+      );
+
+      player.y = Math.max(
+        field.y + player.radius,
+        Math.min(field.y + field.h - player.radius, player.y)
+      );
+    }
 
     function drawGrass() {
       const { x, y, w, h } = field;
@@ -244,43 +277,23 @@
         const stripeWidth = w / count;
 
         for (let i = 0; i < count; i++) {
-          ctx.fillStyle = i % 2 === 0
-            ? "#2e8749"
-            : "#24763e";
-
-          ctx.fillRect(
-            x + i * stripeWidth,
-            y,
-            stripeWidth + 0.5,
-            h
-          );
+          ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
+          ctx.fillRect(x + i * stripeWidth, y, stripeWidth + 0.5, h);
         }
       } else {
-        // Alternating elliptical bands.
         const maxRadius = Math.hypot(w / 2, h / 2) + 80;
         const step = 42;
         let index = 0;
 
-        for (
-          let radius = maxRadius;
-          radius >= 0;
-          radius -= step
-        ) {
+        for (let radius = maxRadius; radius >= 0; radius -= step) {
           ctx.beginPath();
           ctx.ellipse(
-            centerX,
-            centerY,
-            radius * 1.45,
-            radius,
-            0,
-            0,
-            Math.PI * 2
+            centerX, centerY,
+            radius * 1.45, radius,
+            0, 0, Math.PI * 2
           );
 
-          ctx.fillStyle = index % 2 === 0
-            ? "#2e8749"
-            : "#24763e";
-
+          ctx.fillStyle = index % 2 === 0 ? "#2e8749" : "#24763e";
           ctx.fill();
           index++;
         }
@@ -299,12 +312,8 @@
     function drawCircle(x, y, radius, fill = false) {
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
-
-      if (fill) {
-        ctx.fill();
-      } else {
-        ctx.stroke();
-      }
+      if (fill) ctx.fill();
+      else ctx.stroke();
     }
 
     function drawGoal(side) {
@@ -312,16 +321,11 @@
       const goalWidth = 35;
       const goalHeight = 112;
       const goalY = y + (h - goalHeight) / 2;
+      const goalX = side === "left" ? x - goalWidth : x + w;
 
-      const goalX = side === "left"
-        ? x - goalWidth
-        : x + w;
-
-      // Net background.
       ctx.fillStyle = "#dbe9dd22";
       ctx.fillRect(goalX, goalY, goalWidth, goalHeight);
 
-      // Net mesh.
       ctx.strokeStyle = "#dce6df99";
       ctx.lineWidth = 1;
 
@@ -335,7 +339,6 @@
         drawLine(goalX, netY, goalX + goalWidth, netY);
       }
 
-      // Goal frame.
       ctx.strokeStyle = "#f4f5eb";
       ctx.lineWidth = 4;
       ctx.strokeRect(goalX, goalY, goalWidth, goalHeight);
@@ -349,11 +352,8 @@
       ctx.fillStyle = "#f3f5e9";
       ctx.lineWidth = 3;
 
-      // Outer boundary and halfway line.
       ctx.strokeRect(x, y, w, h);
       drawLine(centerX, y, centerX, y + h);
-
-      // Center circle and spot.
       drawCircle(centerX, centerY, 91);
       drawCircle(centerX, centerY, 4, true);
 
@@ -367,60 +367,36 @@
       for (const side of ["left", "right"]) {
         const leftSide = side === "left";
 
-        const boxX = leftSide
-          ? x
-          : x + w - penaltyDepth;
-
-        const goalBoxX = leftSide
-          ? x
-          : x + w - goalAreaDepth;
+        const boxX = leftSide ? x : x + w - penaltyDepth;
+        const goalBoxX = leftSide ? x : x + w - goalAreaDepth;
 
         ctx.strokeRect(
-          boxX,
-          centerY - penaltyHeight / 2,
-          penaltyDepth,
-          penaltyHeight
+          boxX, centerY - penaltyHeight / 2,
+          penaltyDepth, penaltyHeight
         );
 
         ctx.strokeRect(
-          goalBoxX,
-          centerY - goalAreaHeight / 2,
-          goalAreaDepth,
-          goalAreaHeight
+          goalBoxX, centerY - goalAreaHeight / 2,
+          goalAreaDepth, goalAreaHeight
         );
 
-        const spotX = leftSide
-          ? x + spotDistance
-          : x + w - spotDistance;
-
+        const spotX = leftSide ? x + spotDistance : x + w - spotDistance;
         drawCircle(spotX, centerY, 4, true);
 
-        // The visible penalty arc.
         ctx.beginPath();
 
         if (leftSide) {
-          ctx.arc(
-            spotX,
-            centerY,
-            penaltyArcRadius,
-            -0.88,
-            0.88
-          );
+          ctx.arc(spotX, centerY, penaltyArcRadius, -0.88, 0.88);
         } else {
           ctx.arc(
-            spotX,
-            centerY,
-            penaltyArcRadius,
-            Math.PI - 0.88,
-            Math.PI + 0.88
+            spotX, centerY, penaltyArcRadius,
+            Math.PI - 0.88, Math.PI + 0.88
           );
         }
 
         ctx.stroke();
 
-        // Corner arcs.
         const r = 14;
-
         ctx.beginPath();
 
         if (leftSide) {
@@ -442,27 +418,16 @@
 
       ctx.save();
 
-      // Soft shadow.
       ctx.beginPath();
-      ctx.ellipse(
-        x + 3,
-        y + 5,
-        radius * 0.95,
-        radius * 0.7,
-        0,
-        0,
-        Math.PI * 2
-      );
+      ctx.ellipse(x + 3, y + 5, radius * 0.95, radius * 0.7, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#0005";
       ctx.fill();
 
-      // White ball.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = "#f7f7f0";
       ctx.fill();
 
-      // Central black pentagon.
       ctx.beginPath();
 
       for (let i = 0; i < 5; i++) {
@@ -470,18 +435,14 @@
         const px = x + Math.cos(angle) * radius * 0.42;
         const py = y + Math.sin(angle) * radius * 0.42;
 
-        if (i === 0) {
-          ctx.moveTo(px, py);
-        } else {
-          ctx.lineTo(px, py);
-        }
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
       }
 
       ctx.closePath();
       ctx.fillStyle = "#252b2d";
       ctx.fill();
 
-      // Ball outline.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.strokeStyle = "#202629";
@@ -496,37 +457,22 @@
 
       ctx.save();
 
-      // Soft shadow beneath the player marker.
       ctx.beginPath();
-      ctx.ellipse(
-        x + 2,
-        y + 4,
-        radius + 1,
-        radius * 0.8,
-        0,
-        0,
-        Math.PI * 2
-      );
+      ctx.ellipse(x + 2, y + 4, radius + 1, radius * 0.8, 0, 0, Math.PI * 2);
       ctx.fillStyle = "#0005";
       ctx.fill();
 
-      // Light outer ring.
       ctx.beginPath();
       ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
       ctx.fillStyle = "#f5f7f2";
       ctx.fill();
 
-      // Blue circular body.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
       const gradient = ctx.createRadialGradient(
-        x - radius * 0.35,
-        y - radius * 0.4,
-        1,
-        x,
-        y,
-        radius
+        x - radius * 0.35, y - radius * 0.4, 1,
+        x, y, radius
       );
 
       gradient.addColorStop(0, "#62b0ff");
@@ -535,7 +481,6 @@
       ctx.fillStyle = gradient;
       ctx.fill();
 
-      // Thin dark outline.
       ctx.strokeStyle = "#174d91";
       ctx.lineWidth = 1.5;
       ctx.stroke();
@@ -546,16 +491,13 @@
     function draw() {
       ctx.clearRect(0, 0, W, H);
 
-      // Stadium surround.
       ctx.fillStyle = "#1c292b";
       ctx.fillRect(0, 0, W, H);
 
       ctx.save();
 
-      // Zoom around the center of the field.
       if (state.camera === "zoom") {
         const zoom = 1.22;
-
         ctx.translate(centerX, centerY);
         ctx.scale(zoom, zoom);
         ctx.translate(-centerX, -centerY);
@@ -565,8 +507,6 @@
       drawMarkings();
       drawGoal("left");
       drawGoal("right");
-
-      // Draw the player before the ball so the ball stays visible.
       drawPlayer();
       drawBall();
 
@@ -586,31 +526,41 @@
           String(id === value)
         );
       }
-
-      draw();
     }
 
     document.getElementById("full").addEventListener(
-      "click",
-      () => setOption("camera", "full")
+      "click", () => setOption("camera", "full")
     );
 
     document.getElementById("zoom").addEventListener(
-      "click",
-      () => setOption("camera", "zoom")
+      "click", () => setOption("camera", "zoom")
     );
 
     document.getElementById("stripes").addEventListener(
-      "click",
-      () => setOption("grass", "stripes")
+      "click", () => setOption("grass", "stripes")
     );
 
     document.getElementById("rings").addEventListener(
-      "click",
-      () => setOption("grass", "rings")
+      "click", () => setOption("grass", "rings")
     );
 
-    draw();
+    // Smooth animation loop; movement is frame-rate independent.
+    let previousTime = 0;
+
+    function gameLoop(timestamp) {
+      const deltaTime = previousTime === 0
+        ? 0
+        : Math.min((timestamp - previousTime) / 1000, 0.05);
+
+      previousTime = timestamp;
+
+      updatePlayer(deltaTime);
+      draw();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
   </script>
 </body>
 </html>
