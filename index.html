@@ -333,76 +333,75 @@
       }
     }
 
-    
-function updateBall(deltaTime) {
-  ball.x += ball.vx * deltaTime;
-  ball.y += ball.vy * deltaTime;
+    // BALL PHYSICS AND GOAL DETECTION
+    function updateBall(deltaTime) {
+      ball.x += ball.vx * deltaTime;
+      ball.y += ball.vy * deltaTime;
 
-  const drag = Math.exp(-ball.friction * deltaTime);
-  ball.vx *= drag;
-  ball.vy *= drag;
+      const drag = Math.exp(-ball.friction * deltaTime);
+      ball.vx *= drag;
+      ball.vy *= drag;
 
-  if (Math.hypot(ball.vx, ball.vy) < 2) {
-    ball.vx = 0;
-    ball.vy = 0;
-  }
+      if (Math.hypot(ball.vx, ball.vy) < 2) {
+        ball.vx = 0;
+        ball.vy = 0;
+      }
 
-  const minX = field.x + ball.radius;
-  const maxX = field.x + field.w - ball.radius;
-  const minY = field.y + ball.radius;
-  const maxY = field.y + field.h - ball.radius;
+      const minX = field.x + ball.radius;
+      const maxX = field.x + field.w - ball.radius;
+      const minY = field.y + ball.radius;
+      const maxY = field.y + field.h - ball.radius;
 
-  const goalHeight = 112;
-  const goalTop = centerY - goalHeight / 2 + ball.radius;
-  const goalBottom = centerY + goalHeight / 2 - ball.radius;
+      const goalHeight = 112;
+      const goalTop = centerY - goalHeight / 2 + ball.radius;
+      const goalBottom = centerY + goalHeight / 2 - ball.radius;
 
-  const insideGoalMouth =
-    ball.y >= goalTop && ball.y <= goalBottom;
+      const insideGoalMouth =
+        ball.y >= goalTop && ball.y <= goalBottom;
 
-  // Score only when the ENTIRE ball has crossed the goal line.
-  if (
-    insideGoalMouth &&
-    ball.x + ball.radius <= field.x
-  ) {
-    state.rightScore++;
-    resetAfterGoal();
-    return;
-  }
+      // Score only when the entire ball has crossed the goal line.
+      if (
+        insideGoalMouth &&
+        ball.x + ball.radius <= field.x
+      ) {
+        state.rightScore++;
+        resetAfterGoal();
+        return;
+      }
 
-  if (
-    insideGoalMouth &&
-    ball.x - ball.radius >= field.x + field.w
-  ) {
-    state.leftScore++;
-    resetAfterGoal();
-    return;
-  }
+      if (
+        insideGoalMouth &&
+        ball.x - ball.radius >= field.x + field.w
+      ) {
+        state.leftScore++;
+        resetAfterGoal();
+        return;
+      }
 
-  // Allow the ball to enter either goal mouth.
-  // Outside the openings, the goal line remains solid.
-  if (ball.x < minX && !insideGoalMouth) {
-    ball.x = minX;
-    ball.vx = Math.abs(ball.vx) * ball.restitution;
-  }
+      // Solid goal line outside the goal mouth.
+      if (ball.x < minX && !insideGoalMouth) {
+        ball.x = minX;
+        ball.vx = Math.abs(ball.vx) * ball.restitution;
+      }
 
-  if (ball.x > maxX && !insideGoalMouth) {
-    ball.x = maxX;
-    ball.vx = -Math.abs(ball.vx) * ball.restitution;
-  }
+      if (ball.x > maxX && !insideGoalMouth) {
+        ball.x = maxX;
+        ball.vx = -Math.abs(ball.vx) * ball.restitution;
+      }
 
-  // Touchline collisions.
-  if (ball.y < minY) {
-    ball.y = minY;
-    ball.vy = Math.abs(ball.vy) * ball.restitution;
-  }
+      // Top and bottom touchlines.
+      if (ball.y < minY) {
+        ball.y = minY;
+        ball.vy = Math.abs(ball.vy) * ball.restitution;
+      }
 
-  if (ball.y > maxY) {
-    ball.y = maxY;
-    ball.vy = -Math.abs(ball.vy) * ball.restitution;
-  }
-}
+      if (ball.y > maxY) {
+        ball.y = maxY;
+        ball.vy = -Math.abs(ball.vy) * ball.restitution;
+      }
+    }
 
-
+    // HAXBALL-INSPIRED PLAYER-BALL CONTROL
     function handlePlayerBallCollision() {
       const dx = ball.x - player.x;
       const dy = ball.y - player.y;
@@ -414,46 +413,55 @@ function updateBall(deltaTime) {
       const nx = distance > 0 ? dx / distance : 1;
       const ny = distance > 0 ? dy / distance : 0;
 
+      // Separate the player and ball so they do not overlap.
       const overlap = minDistance - distance;
-
       ball.x += nx * overlap;
       ball.y += ny * overlap;
 
+      // Player velocity toward the ball.
       const impactSpeed = player.vx * nx + player.vy * ny;
 
       if (impactSpeed > 0) {
-        const kickStrength = 0.65;
+        // Transfer some of the player's movement to the ball.
+        const kickStrength = 0.72;
 
         ball.vx += nx * impactSpeed * kickStrength;
         ball.vy += ny * impactSpeed * kickStrength;
+
+        // Slight sideways influence for smoother steering.
+        const tangentX = -ny;
+        const tangentY = nx;
+        const sideSpeed =
+          player.vx * tangentX + player.vy * tangentY;
+
+        ball.vx += tangentX * sideSpeed * 0.12;
+        ball.vy += tangentY * sideSpeed * 0.12;
       }
 
-     const goalTop = centerY - 56 + ball.radius;
-const goalBottom = centerY + 56 - ball.radius;
+      // Allow the ball to cross either goal line.
+      const goalTop = centerY - 56 + ball.radius;
+      const goalBottom = centerY + 56 - ball.radius;
 
-const inGoalMouth =
-  ball.y >= goalTop &&
-  ball.y <= goalBottom;
+      const inGoalMouth =
+        ball.y >= goalTop && ball.y <= goalBottom;
 
-if (inGoalMouth) {
-  // Let the ball pass through either goal mouth
-  ball.x = Math.max(
-    field.x - ball.radius,
-    Math.min(field.x + field.w + ball.radius, ball.x)
-  );
-} else {
-  // Keep the ball inside the field horizontally
-  ball.x = Math.max(
-    field.x + ball.radius,
-    Math.min(field.x + field.w - ball.radius, ball.x)
-  );
-}
+      if (inGoalMouth) {
+        ball.x = Math.max(
+          field.x - ball.radius,
+          Math.min(field.x + field.w + ball.radius, ball.x)
+        );
+      } else {
+        ball.x = Math.max(
+          field.x + ball.radius,
+          Math.min(field.x + field.w - ball.radius, ball.x)
+        );
+      }
 
-// Keep the ball inside the field vertically
-ball.y = Math.max(
-  field.y + ball.radius,
-  Math.min(field.y + field.h - ball.radius, ball.y)
-  );
+      // Keep the ball inside the top and bottom boundaries.
+      ball.y = Math.max(
+        field.y + ball.radius,
+        Math.min(field.y + field.h - ball.radius, ball.y)
+      );
     }
 
     function resetAfterGoal() {
@@ -489,7 +497,9 @@ ball.y = Math.max(
         const stripeWidth = w / count;
 
         for (let i = 0; i < count; i++) {
-          ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
+          ctx.fillStyle =
+            i % 2 === 0 ? "#2e8749" : "#24763e";
+
           ctx.fillRect(
             x + i * stripeWidth,
             y,
@@ -502,7 +512,11 @@ ball.y = Math.max(
         const step = 42;
         let index = 0;
 
-        for (let radius = maxRadius; radius >= 0; radius -= step) {
+        for (
+          let radius = maxRadius;
+          radius >= 0;
+          radius -= step
+        ) {
           ctx.beginPath();
           ctx.ellipse(
             centerX,
@@ -514,7 +528,9 @@ ball.y = Math.max(
             Math.PI * 2
           );
 
-          ctx.fillStyle = index % 2 === 0 ? "#2e8749" : "#24763e";
+          ctx.fillStyle =
+            index % 2 === 0 ? "#2e8749" : "#24763e";
+
           ctx.fill();
           index++;
         }
@@ -547,7 +563,8 @@ ball.y = Math.max(
       const goalHeight = 112;
       const goalY = y + (h - goalHeight) / 2;
 
-      const goalX = side === "left" ? x - goalWidth : x + w;
+      const goalX =
+        side === "left" ? x - goalWidth : x + w;
 
       ctx.fillStyle = "#dbe9dd22";
       ctx.fillRect(goalX, goalY, goalWidth, goalHeight);
@@ -593,8 +610,11 @@ ball.y = Math.max(
       for (const side of ["left", "right"]) {
         const leftSide = side === "left";
 
-        const boxX = leftSide ? x : x + w - penaltyDepth;
-        const goalBoxX = leftSide ? x : x + w - goalAreaDepth;
+        const boxX =
+          leftSide ? x : x + w - penaltyDepth;
+
+        const goalBoxX =
+          leftSide ? x : x + w - goalAreaDepth;
 
         ctx.strokeRect(
           boxX,
@@ -646,7 +666,13 @@ ball.y = Math.max(
           ctx.arc(x, y + h, r, -Math.PI / 2, 0);
         } else {
           ctx.arc(x + w, y, r, Math.PI / 2, Math.PI);
-          ctx.arc(x + w, y + h, r, Math.PI, Math.PI * 1.5);
+          ctx.arc(
+            x + w,
+            y + h,
+            r,
+            Math.PI,
+            Math.PI * 1.5
+          );
         }
 
         ctx.stroke();
@@ -660,6 +686,7 @@ ball.y = Math.max(
 
       ctx.save();
 
+      // Ball shadow.
       ctx.beginPath();
       ctx.ellipse(
         x + 3,
@@ -673,11 +700,13 @@ ball.y = Math.max(
       ctx.fillStyle = "#0005";
       ctx.fill();
 
+      // Ball body.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.fillStyle = "#f7f7f0";
       ctx.fill();
 
+      // Central pentagon.
       ctx.beginPath();
 
       for (let i = 0; i < 5; i++) {
@@ -710,6 +739,7 @@ ball.y = Math.max(
 
       ctx.save();
 
+      // Player shadow.
       ctx.beginPath();
       ctx.ellipse(
         x + 2,
@@ -723,11 +753,13 @@ ball.y = Math.max(
       ctx.fillStyle = "#0005";
       ctx.fill();
 
+      // White outline.
       ctx.beginPath();
       ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
       ctx.fillStyle = "#f5f7f2";
       ctx.fill();
 
+      // Blue player body.
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
