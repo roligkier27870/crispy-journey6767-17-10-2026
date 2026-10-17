@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Kickoff Football</title>
 
   <style>
@@ -14,33 +14,172 @@
     body {
       margin: 0;
       min-height: 100vh;
+      padding: 28px 16px;
       display: grid;
       place-items: center;
-      background: #101820;
+      background:
+        radial-gradient(ellipse at top, #263640, #10171d 70%);
+      color: #edf3f0;
       font-family: Arial, sans-serif;
     }
 
+    .app {
+      width: min(100%, 1120px);
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 32px);
+      letter-spacing: -1px;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      color: #9eafb5;
+      font-size: 13px;
+    }
+
+    .live {
+      color: #a7efbd;
+      font-size: 11px;
+      letter-spacing: 2px;
+      font-weight: bold;
+    }
+
     .stadium {
-      width: min(94vw, 1100px);
-      padding: 12px;
-      background: #26343b;
-      border: 1px solid #41515a;
+      padding: 10px;
+      border: 1px solid #40515a;
       border-radius: 12px;
-      box-shadow: 0 18px 50px #0006;
+      background: #202d34;
+      box-shadow: 0 24px 70px #0006;
+    }
+
+    .viewport {
+      overflow: hidden;
+      border-radius: 5px;
+      background: #216c3c;
     }
 
     canvas {
       display: block;
       width: 100%;
       height: auto;
-      border-radius: 4px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      padding: 16px 4px 4px;
+    }
+
+    .group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .label {
+      color: #9eafb5;
+      font-size: 12px;
+      margin-right: 3px;
+    }
+
+    button {
+      padding: 9px 12px;
+      border: 1px solid #455760;
+      border-radius: 6px;
+      background: #293840;
+      color: #e5eeeb;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 120ms, border-color 120ms;
+    }
+
+    button:hover {
+      border-color: #91c7a0;
+    }
+
+    button[aria-pressed="true"] {
+      background: #285f40;
+      border-color: #71bd8a;
+      color: white;
+    }
+
+    .note {
+      margin: 12px 2px 0;
+      color: #84969e;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 18px 10px;
+      }
+
+      .stadium {
+        padding: 6px;
+      }
+
+      .controls {
+        align-items: flex-start;
+      }
     }
   </style>
 </head>
 
 <body>
-  <main class="stadium">
-    <canvas id="pitch" width="1000" height="600"></canvas>
+  <main class="app">
+    <header>
+      <div>
+        <h1>KICKOFF <span style="color:#80d69a">FOOTBALL</span></h1>
+        <div class="subtitle">THE PITCH · VISUAL PREVIEW</div>
+      </div>
+      <div class="live">● PITCH DESIGN</div>
+    </header>
+
+    <section class="stadium">
+      <div class="viewport">
+        <canvas
+          id="pitch"
+          width="1200"
+          height="760"
+          aria-label="Top-down football pitch preview"
+        ></canvas>
+      </div>
+
+      <div class="controls">
+        <div class="group">
+          <span class="label">CAMERA</span>
+          <button id="full" aria-pressed="true">Full pitch</button>
+          <button id="zoom" aria-pressed="false">Zoomed in</button>
+        </div>
+
+        <div class="group">
+          <span class="label">GRASS</span>
+          <button id="stripes" aria-pressed="true">Stripes</button>
+          <button id="rings" aria-pressed="false">Concentric</button>
+        </div>
+      </div>
+    </section>
+
+    <p class="note">
+      Visual preview only. Choose a camera and grass pattern to compare
+      the pitch presentation.
+    </p>
   </main>
 
   <script>
@@ -49,110 +188,307 @@
 
     const W = canvas.width;
     const H = canvas.height;
-    const margin = 28;
 
-    function drawPitch() {
-      // Grass
-      ctx.fillStyle = "#237b43";
-      ctx.fillRect(0, 0, W, H);
+    const field = {
+      x: 80,
+      y: 40,
+      w: 1040,
+      h: 680
+    };
 
-      // Alternating grass stripes
-      const stripeWidth = (W - margin * 2) / 10;
+    const centerX = field.x + field.w / 2;
+    const centerY = field.y + field.h / 2;
 
-      for (let i = 0; i < 10; i++) {
-        if (i % 2 === 0) {
-          ctx.fillStyle = "#2c894b";
+    const state = {
+      camera: "full",
+      grass: "stripes"
+    };
+
+    function grass() {
+      const { x, y, w, h } = field;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(x, y, w, h);
+      ctx.clip();
+
+      ctx.fillStyle = "#277b43";
+      ctx.fillRect(x, y, w, h);
+
+      if (state.grass === "stripes") {
+        const count = 10;
+        const stripeWidth = w / count;
+
+        for (let i = 0; i < count; i++) {
+          ctx.fillStyle = i % 2 === 0
+            ? "#2e8749"
+            : "#24763e";
+
           ctx.fillRect(
-            margin + i * stripeWidth,
-            margin,
-            stripeWidth,
-            H - margin * 2
+            x + i * stripeWidth,
+            y,
+            stripeWidth + 0.5,
+            h
           );
+        }
+      } else {
+        // Nested ellipses create alternating concentric bands.
+        const maxRadius = Math.hypot(w / 2, h / 2) + 80;
+        const step = 42;
+
+        let index = 0;
+
+        for (
+          let radius = maxRadius;
+          radius >= 0;
+          radius -= step
+        ) {
+          ctx.beginPath();
+          ctx.ellipse(
+            centerX,
+            centerY,
+            radius * 1.45,
+            radius,
+            0,
+            0,
+            Math.PI * 2
+          );
+
+          ctx.fillStyle = index % 2 === 0
+            ? "#2e8749"
+            : "#24763e";
+
+          ctx.fill();
+          index++;
         }
       }
 
-      // White pitch markings
-      ctx.strokeStyle = "#f4f7ef";
-      ctx.lineWidth = 3;
+      ctx.restore();
+    }
 
-      ctx.strokeRect(
-        margin,
-        margin,
-        W - margin * 2,
-        H - margin * 2
-      );
-
-      // Halfway line
+    function line(x1, y1, x2, y2) {
       ctx.beginPath();
-      ctx.moveTo(W / 2, margin);
-      ctx.lineTo(W / 2, H - margin);
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
       ctx.stroke();
+    }
 
-      // Center circle
+    function circle(x, y, radius, fill = false) {
       ctx.beginPath();
-      ctx.arc(W / 2, H / 2, 75, 0, Math.PI * 2);
-      ctx.stroke();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
 
-      // Center spot
-      ctx.fillStyle = "#f4f7ef";
-      ctx.beginPath();
-      ctx.arc(W / 2, H / 2, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Penalty and goal areas on both sides
-      const boxDepth = 125;
-      const boxHeight = 250;
-      const goalDepth = 48;
-      const goalHeight = 130;
-
-      for (const side of ["left", "right"]) {
-        const x = side === "left"
-          ? margin
-          : W - margin - boxDepth;
-
-        const goalX = side === "left"
-          ? margin - goalDepth
-          : W - margin;
-
-        // Penalty area
-        ctx.strokeRect(
-          x,
-          (H - boxHeight) / 2,
-          boxDepth,
-          boxHeight
-        );
-
-        // Goal area
-        const sixY = (H - 120) / 2;
-
-        ctx.strokeRect(
-          side === "left" ? margin : W - margin - 55,
-          sixY,
-          55,
-          120
-        );
-
-        // Goal frame
-        ctx.strokeRect(
-          goalX,
-          (H - goalHeight) / 2,
-          goalDepth,
-          goalHeight
-        );
-
-        // Penalty spot
-        const spotX = side === "left"
-          ? margin + 82
-          : W - margin - 82;
-
-        ctx.fillStyle = "#f4f7ef";
-        ctx.beginPath();
-        ctx.arc(spotX, H / 2, 4, 0, Math.PI * 2);
+      if (fill) {
         ctx.fill();
+      } else {
+        ctx.stroke();
       }
     }
 
-    drawPitch();
+    function drawGoal(side) {
+      const { x, y, w, h } = field;
+      const goalWidth = 35;
+      const goalHeight = 112;
+      const gy = y + (h - goalHeight) / 2;
+
+      const gx = side === "left"
+        ? x - goalWidth
+        : x + w;
+
+      // Subtle net shading.
+      ctx.fillStyle = "#dbe9dd22";
+      ctx.fillRect(gx, gy, goalWidth, goalHeight);
+
+      ctx.strokeStyle = "#dce6df99";
+      ctx.lineWidth = 1;
+
+      for (let i = 1; i < 5; i++) {
+        const nx = gx + (goalWidth * i) / 5;
+        line(nx, gy, nx, gy + goalHeight);
+      }
+
+      for (let i = 1; i < 6; i++) {
+        const ny = gy + (goalHeight * i) / 6;
+        line(gx, ny, gx + goalWidth, ny);
+      }
+
+      // Goal frame.
+      ctx.strokeStyle = "#f4f5eb";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(gx, gy, goalWidth, goalHeight);
+    }
+
+    function markings() {
+      const { x, y, w, h } = field;
+
+      ctx.save();
+      ctx.strokeStyle = "#f3f5e9";
+      ctx.fillStyle = "#f3f5e9";
+      ctx.lineWidth = 3;
+
+      // Main boundary.
+      ctx.strokeRect(x, y, w, h);
+
+      // Halfway line and center circle.
+      line(centerX, y, centerX, y + h);
+      circle(centerX, centerY, 91);
+      circle(centerX, centerY, 4, true);
+
+      const penaltyDepth = 165;
+      const penaltyHeight = 360;
+      const goalAreaDepth = 62;
+      const goalAreaHeight = 190;
+      const spotDistance = 110;
+      const spotRadius = 4;
+      const penaltyRadius = 91;
+
+      for (const side of ["left", "right"]) {
+        const leftSide = side === "left";
+
+        const boxX = leftSide
+          ? x
+          : x + w - penaltyDepth;
+
+        const goalBoxX = leftSide
+          ? x
+          : x + w - goalAreaDepth;
+
+        const boxY = centerY - penaltyHeight / 2;
+        const goalBoxY = centerY - goalAreaHeight / 2;
+
+        // Penalty area.
+        ctx.strokeRect(
+          boxX,
+          boxY,
+          penaltyDepth,
+          penaltyHeight
+        );
+
+        // Six-yard box.
+        ctx.strokeRect(
+          goalBoxX,
+          goalBoxY,
+          goalAreaDepth,
+          goalAreaHeight
+        );
+
+        const spotX = leftSide
+          ? x + spotDistance
+          : x + w - spotDistance;
+
+        circle(spotX, centerY, spotRadius, true);
+
+        // Penalty arc, with the part inside the box omitted.
+        ctx.beginPath();
+
+        if (leftSide) {
+          ctx.arc(
+            spotX,
+            centerY,
+            penaltyRadius,
+            -0.88,
+            0.88
+          );
+        } else {
+          ctx.arc(
+            spotX,
+            centerY,
+            penaltyRadius,
+            Math.PI - 0.88,
+            Math.PI + 0.88
+          );
+        }
+
+        ctx.stroke();
+
+        // Corner arcs.
+        const r = 14;
+
+        ctx.beginPath();
+
+        if (leftSide) {
+          ctx.arc(x, y, r, 0, Math.PI / 2);
+          ctx.moveTo(x, y + h - r);
+          ctx.arc(x, y + h, r, -Math.PI / 2, 0);
+        } else {
+          ctx.arc(x + w, y, r, Math.PI / 2, Math.PI);
+          ctx.moveTo(x + w - r, y + h);
+          ctx.arc(x + w, y + h, r, Math.PI, Math.PI * 1.5);
+        }
+
+        ctx.stroke();
+      }
+
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+
+      // Dark surround outside the playing surface.
+      ctx.fillStyle = "#1c292b";
+      ctx.fillRect(0, 0, W, H);
+
+      ctx.save();
+
+      // Zoom around the center of the pitch.
+      if (state.camera === "zoom") {
+        const zoom = 1.22;
+
+        ctx.translate(centerX, centerY);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-centerX, -centerY);
+      }
+
+      grass();
+      markings();
+      drawGoal("left");
+      drawGoal("right");
+
+      ctx.restore();
+    }
+
+    function setOption(group, value) {
+      state[group] = value;
+
+      const ids = group === "camera"
+        ? ["full", "zoom"]
+        : ["stripes", "rings"];
+
+      const selectedId = group === "camera"
+        ? value
+        : value;
+
+      for (const id of ids) {
+        document.getElementById(id).setAttribute(
+          "aria-pressed",
+          String(id === selectedId)
+        );
+      }
+
+      draw();
+    }
+
+    document.getElementById("full").addEventListener(
+      "click",
+      () => setOption("camera", "full")
+    );
+
+    document.getElementById("zoom").addEventListener(
+      "click",
+      () => setOption("camera", "zoom")
+    );
+
+    document.getElementById("stripes").addEventListener(
+      "click",
+      () => setOption("grass", "stripes")
+    );
+
+    document.getElementById("rings").addEventListener(
+      "click",
+      () => setOption("grass", "rings")
+    );
+
+    draw();
   </script>
 </body>
 </html>
