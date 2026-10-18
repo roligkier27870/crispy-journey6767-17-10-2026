@@ -152,8 +152,8 @@
 
     <p class="note">
       Controls: WASD to move. Move around the ball to adjust your
-      kicking angle. Space to shoot when close enough. The red AI
-      chases the ball and attacks the left goal.
+      kicking angle. Space to shoot only when touching the ball.
+      The red AI chases the ball and attacks the left goal.
     </p>
   </main>
 
@@ -280,6 +280,7 @@
       if (keys.has("w")) dy--;
       if (keys.has("s")) dy++;
 
+      // Normalize movement so diagonals aren't faster.
       if (dx || dy) {
         const length = Math.hypot(dx, dy);
         dx /= length;
@@ -314,18 +315,13 @@
       keepInsidePitch(player);
     }
 
-    // AI behaviour:
-    // Position itself behind the ball relative to the left goal,
-    // move toward that position, and shoot when close enough.
+    // AI chases the ball and attempts to shoot toward the left goal.
     function updateAI(dt) {
       ai.kickCooldown = Math.max(0, ai.kickCooldown - dt);
 
       const goalX = field.x - GOAL_WIDTH;
       const goalY = centerY;
 
-      // Direction from the left goal toward the ball.
-      // The AI approaches from the opposite side so the ball
-      // can be kicked toward the left goal.
       let awayX = ball.x - goalX;
       let awayY = ball.y - goalY;
       let awayLength = Math.hypot(awayX, awayY);
@@ -340,10 +336,10 @@
       awayY /= awayLength;
 
       const approachDistance = ai.radius + ball.radius + 7;
+
       let targetX = ball.x + awayX * approachDistance;
       let targetY = ball.y + awayY * approachDistance;
 
-      // Keep the AI's target inside the pitch.
       targetX = Math.max(
         field.x + ai.radius,
         Math.min(field.x + field.w - ai.radius, targetX)
@@ -366,7 +362,6 @@
         desiredVY = toY / distanceToTarget * ai.speed;
       }
 
-      // Smooth acceleration makes the AI movement less robotic.
       const response = Math.min(1, 5 * dt);
       ai.vx += (desiredVX - ai.vx) * response;
       ai.vy += (desiredVY - ai.vy) * response;
@@ -376,11 +371,10 @@
 
       keepInsidePitch(ai);
 
-      // Shoot toward the left goal when close to the ball.
       const ballDX = ball.x - ai.x;
       const ballDY = ball.y - ai.y;
       const ballDistance = Math.hypot(ballDX, ballDY);
-      const kickRange = ai.radius + ball.radius + 16;
+      const kickRange = ai.radius + ball.radius + 1;
 
       if (ballDistance <= kickRange && ai.kickCooldown <= 0) {
         const aimX = goalX - ball.x;
@@ -398,12 +392,13 @@
       }
     }
 
+    // Blue player can shoot only when touching the ball.
     function shootBall() {
       const dx = ball.x - player.x;
       const dy = ball.y - player.y;
       const distance = Math.hypot(dx, dy);
 
-      if (distance > player.radius + ball.radius + 18) return;
+      if (distance > player.radius + ball.radius + 1) return;
       if (distance < 0.001) return;
 
       const shotPower = 480;
@@ -497,6 +492,7 @@
       }
     }
 
+    // Ball collision with either player.
     function handleEntityBallCollision(entity) {
       const dx = ball.x - entity.x;
       const dy = ball.y - entity.y;
@@ -520,7 +516,8 @@
 
         const tangentX = -ny;
         const tangentY = nx;
-        const sideSpeed = entity.vx * tangentX + entity.vy * tangentY;
+        const sideSpeed =
+          entity.vx * tangentX + entity.vy * tangentY;
 
         ball.vx += tangentX * sideSpeed * 0.12;
         ball.vy += tangentY * sideSpeed * 0.12;
@@ -548,6 +545,44 @@
       );
     }
 
+    // Prevent blue and red players from overlapping or walking through each other.
+    function handlePlayerCollision() {
+      const dx = ai.x - player.x;
+      const dy = ai.y - player.y;
+      const distance = Math.hypot(dx, dy);
+      const minDistance = player.radius + ai.radius;
+
+      if (distance >= minDistance) return;
+
+      const nx = distance > 0.001 ? dx / distance : 1;
+      const ny = distance > 0.001 ? dy / distance : 0;
+
+      // Separate both players equally.
+      const overlap = minDistance - distance;
+
+      player.x -= nx * overlap / 2;
+      player.y -= ny * overlap / 2;
+      ai.x += nx * overlap / 2;
+      ai.y += ny * overlap / 2;
+
+      // Remove velocity pushing them into one another.
+      const relativeSpeed =
+        (ai.vx - player.vx) * nx +
+        (ai.vy - player.vy) * ny;
+
+      if (relativeSpeed < 0) {
+        const impulse = -relativeSpeed / 2;
+
+        player.vx -= nx * impulse;
+        player.vy -= ny * impulse;
+        ai.vx += nx * impulse;
+        ai.vy += ny * impulse;
+      }
+
+      keepInsidePitch(player);
+      keepInsidePitch(ai);
+    }
+
     function drawGrass() {
       const { x, y, w, h } = field;
 
@@ -565,7 +600,9 @@
 
         for (let i = 0; i < count; i++) {
           ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
-          ctx.fillRect(x + i * stripeWidth, y, stripeWidth + 0.5, h);
+          ctx.fillRect(
+            x + i * stripeWidth, y, stripeWidth + 0.5, h
+          );
         }
       } else {
         const maxRadius = Math.hypot(w / 2, h / 2) + 80;
@@ -863,7 +900,9 @@
       updatePlayer(dt);
       updateAI(dt);
 
-      // Both players can interact physically with the ball.
+      // Resolve player-vs-player collision before ball collisions.
+      handlePlayerCollision();
+
       handleEntityBallCollision(player);
       handleEntityBallCollision(ai);
 
