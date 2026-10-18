@@ -4,13 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101510">
-  <meta name="description" content="Kickoff Football — fast-paced arcade football.">
   <title>Kickoff Football</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div class="app-shell">
-
     <header class="topbar">
       <a class="brand" href="#" aria-label="Kickoff Football home">
         <span class="brand-mark">K</span>
@@ -134,10 +132,26 @@
           <canvas id="game" width="1200" height="760" aria-label="Football match" role="img">
             Your browser does not support HTML canvas.
           </canvas>
+
+          <!-- TACTICAL MINIMAP: FLOATING UPPER-RIGHT -->
+          <aside class="tactical-map" aria-label="Tactical minimap">
+            <div class="tactical-map-header">
+              <span class="tactical-map-title">TACTICAL VIEW</span>
+              <span class="tactical-live"><span class="live-indicator"></span> LIVE</span>
+            </div>
+            <canvas id="minimap" width="360" height="210" aria-label="Full pitch with player and ball positions" role="img"></canvas>
+            <div class="map-legend">
+              <span><i class="legend-dot blue-dot"></i> BLUE</span>
+              <span><i class="legend-dot red-dot"></i> RED</span>
+              <span><i class="legend-dot ball-dot"></i> BALL</span>
+            </div>
+          </aside>
+
           <div class="goal-banner" id="goalBanner" hidden role="status" aria-live="polite">
             <span class="goal-banner-kicker">WHAT A FINISH</span>
             <strong id="goalText">GOAL!</strong>
           </div>
+
           <div class="pause-overlay" id="pauseOverlay" hidden>
             <div class="pause-card">
               <span class="eyebrow">TAKE A BREATHER</span>
@@ -158,19 +172,15 @@
             <span class="control-description">SHOOT</span>
           </div>
           <div class="control-hint">
+            <span class="keycap">E</span>
+            <span class="control-description">PASS</span>
+          </div>
+          <div class="control-hint">
             <span class="keycap">SHIFT</span>
             <span class="control-description">SPRINT</span>
           </div>
           <button class="small-button" id="pauseButton" type="button">PAUSE</button>
         </div>
-      </section>
-
-      <section class="minimap-panel">
-        <div class="minimap-heading">
-          <span>FULL PITCH</span>
-          <span class="minimap-live"><span class="live-indicator"></span> LIVE</span>
-        </div>
-        <canvas id="minimap" width="300" height="170" aria-label="Full pitch minimap" role="img"></canvas>
       </section>
 
       <section class="mobile-controls" aria-label="Touch controls">
@@ -202,9 +212,9 @@
         <article class="info-card">
           <div class="card-icon">◎</div>
           <div class="info-card-content">
-            <span class="card-kicker">CAMERA</span>
-            <h3>Stay in the action.</h3>
-            <p>The main camera follows the ball while the minimap shows the full pitch.</p>
+            <span class="card-kicker">TACTICS</span>
+            <h3>Read the whole pitch.</h3>
+            <p>The tactical map shows both players, the ball, and your current camera view.</p>
           </div>
         </article>
         <article class="info-card">
@@ -221,10 +231,10 @@
     <footer class="site-footer">
       <div class="footer-brand"><span class="footer-mark">K</span><span>KICKOFF FOOTBALL</span></div>
       <span class="footer-caption">BUILT FOR THE LOVE OF THE GAME.</span>
-      <span class="footer-version">ARCADE EDITION · 0.2</span>
+      <span class="footer-version">ARCADE EDITION · 0.3</span>
     </footer>
-
   </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
