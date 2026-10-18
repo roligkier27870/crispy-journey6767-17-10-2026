@@ -1,90 +1,53 @@
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <meta
-    name="description"
-    content="Kickoff Football — a fast-paced, top-down 2D football game."
-  />
-
-  <meta name="theme-color" content="#101510" />
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101510">
+  <meta name="description" content="Kickoff Football — fast-paced arcade football.">
   <title>Kickoff Football</title>
-
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css">
 </head>
-
 <body>
   <div class="app-shell">
 
-    <!-- HEADER -->
     <header class="topbar">
       <a class="brand" href="#" aria-label="Kickoff Football home">
         <span class="brand-mark">K</span>
-
         <span class="brand-copy">
           <strong>KICKOFF</strong>
           <span>FOOTBALL</span>
         </span>
       </a>
-
       <div class="topbar-right">
         <span class="status-dot"></span>
         <span class="status-label">ARCADE FOOTBALL</span>
       </div>
     </header>
 
-
-    <!-- MAIN MENU SCREEN -->
     <main class="screen menu-screen" id="menuScreen">
-
-      <!-- HERO -->
       <section class="hero">
         <div class="hero-copy">
-          <div class="eyebrow">
-            <span class="eyebrow-line"></span>
-            YOUR PITCH. YOUR RULES.
-          </div>
-
-          <h1>
-            Own the<br />
-            <span>moment.</span>
-          </h1>
-
+          <div class="eyebrow"><span class="eyebrow-line"></span> YOUR PITCH. YOUR RULES.</div>
+          <h1>Own the<br><span>moment.</span></h1>
           <p class="hero-description">
             Read the game. Find the space. Make it count.
             Every touch can change everything.
           </p>
-
           <div class="hero-actions">
-            <button
-              class="primary-button"
-              id="playButton"
-              type="button"
-            >
-              <span>PLAY MATCH</span>
-              <span class="button-arrow" aria-hidden="true">→</span>
+            <button class="primary-button" id="playButton" type="button">
+              PLAY MATCH <span class="button-arrow">→</span>
             </button>
-
-            <button
-              class="secondary-button"
-              id="resetButton"
-              type="button"
-            >
+            <button class="secondary-button" id="resetButton" type="button">
               RESET MATCH
             </button>
           </div>
-
           <div class="hero-meta">
-            <span class="meta-dot"></span>
-            <span>QUICK MATCH</span>
-            <span class="meta-divider">/</span>
-            <span>LOCAL ARCADE</span>
+            <span class="meta-dot"></span> QUICK MATCH
+            <span class="meta-divider">/</span> LOCAL ARCADE
           </div>
         </div>
-
         <div class="hero-decoration" aria-hidden="true">
           <div class="hero-ring hero-ring-one"></div>
           <div class="hero-ring hero-ring-two"></div>
@@ -93,115 +56,68 @@
         </div>
       </section>
 
-
-      <!-- SCOREBOARD -->
       <section class="scoreboard" aria-label="Match scoreboard">
         <div class="team-block team-blue">
           <div class="team-badge">B</div>
-
           <div class="team-details">
             <span class="team-label">HOME</span>
             <strong>BLUE FC</strong>
           </div>
         </div>
-
         <div class="score-center">
           <div class="score">
             <span id="blueScore">0</span>
             <span class="score-separator">:</span>
             <span id="redScore">0</span>
           </div>
-
-          <div class="match-status" id="matchStatus">
-            READY FOR KICKOFF
-          </div>
+          <div class="match-status" id="matchStatus">READY FOR KICKOFF</div>
         </div>
-
         <div class="team-block team-red">
           <div class="team-details team-details-right">
             <span class="team-label">AWAY</span>
             <strong>RED UNITED</strong>
           </div>
-
           <div class="team-badge">R</div>
         </div>
       </section>
-
     </main>
 
-
-    <!-- MATCH SCREEN: HIDDEN UNTIL PLAY MATCH -->
-    <main
-      class="screen match-screen"
-      id="matchScreen"
-      hidden
-    >
-
-      <!-- MATCH HEADING -->
+    <main class="screen match-screen" id="matchScreen" hidden>
       <section class="match-heading">
         <div>
-          <div class="eyebrow">
-            <span class="eyebrow-line"></span>
-            LIVE MATCH
-          </div>
-
+          <div class="eyebrow"><span class="eyebrow-line"></span> LIVE MATCH</div>
           <h2>Make your <span>move.</span></h2>
-
-          <p class="match-subtitle">
-            Create space. Win possession. Find the net.
-          </p>
+          <p class="match-subtitle">Create space. Win possession. Find the net.</p>
         </div>
-
-        <button
-          class="secondary-button"
-          id="menuButton"
-          type="button"
-        >
-          ← MAIN MENU
-        </button>
+        <button class="secondary-button" id="menuButton" type="button">← MAIN MENU</button>
       </section>
 
-
-      <!-- IN-MATCH SCOREBOARD -->
-      <section
-        class="scoreboard match-scoreboard"
-        aria-label="Live match score"
-      >
+      <section class="scoreboard match-scoreboard" aria-label="Live score">
         <div class="team-block team-blue">
           <div class="team-badge">B</div>
-
           <div class="team-details">
             <span class="team-label">HOME</span>
             <strong>BLUE FC</strong>
           </div>
         </div>
-
         <div class="score-center">
           <div class="score">
             <span id="matchBlueScore">0</span>
             <span class="score-separator">:</span>
             <span id="matchRedScore">0</span>
           </div>
-
-          <div class="match-status" id="liveMatchStatus">
-            KICKOFF
-          </div>
+          <div class="match-status" id="liveMatchStatus">KICKOFF</div>
         </div>
-
         <div class="team-block team-red">
           <div class="team-details team-details-right">
             <span class="team-label">AWAY</span>
             <strong>RED UNITED</strong>
           </div>
-
           <div class="team-badge">R</div>
         </div>
       </section>
 
-
-      <!-- PLAYING FIELD -->
-      <section class="game-panel" id="gamePanel">
-
+      <section class="game-panel">
         <div class="game-toolbar">
           <div class="toolbar-title">
             <span class="live-indicator"></span>
@@ -209,117 +125,58 @@
             <span class="toolbar-divider">/</span>
             <span class="toolbar-caption">MATCH VIEW</span>
           </div>
-
           <div class="toolbar-controls">
-            <button
-              class="small-button"
-              id="cameraButton"
-              type="button"
-              aria-pressed="true"
-            >
-              <span aria-hidden="true">◎</span>
-              CAMERA
-            </button>
-
-            <button
-              class="small-button"
-              id="grassButton"
-              type="button"
-              aria-pressed="true"
-            >
-              <span aria-hidden="true">▥</span>
-              STRIPES
-            </button>
+            <button class="small-button" id="cameraButton" type="button" aria-pressed="true">◎ CAMERA</button>
+            <button class="small-button" id="grassButton" type="button" aria-pressed="true">▥ STRIPES</button>
           </div>
         </div>
 
-
-        <!-- CANVAS: GAME RENDERING GOES HERE -->
-        <div class="canvas-wrap" id="canvasWrap">
-          <canvas
-            id="game"
-            width="1200"
-            height="760"
-            aria-label="Kickoff Football match field"
-            role="img"
-          >
+        <div class="canvas-wrap">
+          <canvas id="game" width="1200" height="760" aria-label="Football match" role="img">
             Your browser does not support HTML canvas.
           </canvas>
-
-          <!-- GOAL / MATCH ANNOUNCEMENT -->
-          <div
-            class="goal-banner"
-            id="goalBanner"
-            hidden
-            role="status"
-            aria-live="polite"
-          >
+          <div class="goal-banner" id="goalBanner" hidden role="status" aria-live="polite">
             <span class="goal-banner-kicker">WHAT A FINISH</span>
             <strong id="goalText">GOAL!</strong>
           </div>
-
-          <!-- PAUSE OVERLAY -->
-          <div
-            class="pause-overlay"
-            id="pauseOverlay"
-            hidden
-          >
+          <div class="pause-overlay" id="pauseOverlay" hidden>
             <div class="pause-card">
               <span class="eyebrow">TAKE A BREATHER</span>
               <h2>Match paused</h2>
-
-              <button
-                class="primary-button"
-                id="resumeButton"
-                type="button"
-              >
-                RESUME MATCH →
-              </button>
+              <button class="primary-button" id="resumeButton" type="button">RESUME MATCH →</button>
             </div>
           </div>
         </div>
 
-
-        <!-- MATCH CONTROLS -->
         <div class="game-footer">
           <div class="control-hint">
-            <span class="keycap">W</span>
-            <span class="keycap">A</span>
-            <span class="keycap">S</span>
-            <span class="keycap">D</span>
+            <span class="keycap">W</span><span class="keycap">A</span>
+            <span class="keycap">S</span><span class="keycap">D</span>
             <span class="control-description">MOVE</span>
           </div>
-
           <div class="control-hint">
             <span class="keycap keycap-wide">SPACE</span>
             <span class="control-description">SHOOT</span>
           </div>
-
           <div class="control-hint">
             <span class="keycap">SHIFT</span>
             <span class="control-description">SPRINT</span>
           </div>
-
-          <button
-            class="small-button"
-            id="pauseButton"
-            type="button"
-          >
-            PAUSE
-          </button>
+          <button class="small-button" id="pauseButton" type="button">PAUSE</button>
         </div>
-
       </section>
 
+      <section class="minimap-panel">
+        <div class="minimap-heading">
+          <span>FULL PITCH</span>
+          <span class="minimap-live"><span class="live-indicator"></span> LIVE</span>
+        </div>
+        <canvas id="minimap" width="300" height="170" aria-label="Full pitch minimap" role="img"></canvas>
+      </section>
 
-      <!-- MOBILE ACTION BUTTONS -->
-      <section
-        class="mobile-controls"
-        aria-label="Touch controls"
-      >
+      <section class="mobile-controls" aria-label="Touch controls">
         <div class="mobile-movement">
           <span class="mobile-control-label">MOVE</span>
-
           <div class="dpad">
             <button type="button" data-move="up" aria-label="Move up">↑</button>
             <button type="button" data-move="left" aria-label="Move left">←</button>
@@ -327,104 +184,49 @@
             <button type="button" data-move="right" aria-label="Move right">→</button>
           </div>
         </div>
-
         <div class="mobile-actions">
-          <button
-            class="action-button pass-button"
-            id="passButton"
-            type="button"
-          >
-            <span>PASS</span>
-          </button>
-
-          <button
-            class="action-button shoot-button"
-            id="shootButton"
-            type="button"
-          >
-            <span>SHOOT</span>
-          </button>
-
-          <button
-            class="action-button sprint-button"
-            id="sprintButton"
-            type="button"
-          >
-            <span>SPRINT</span>
-          </button>
+          <button class="action-button" id="passButton" type="button">PASS</button>
+          <button class="action-button shoot-button" id="shootButton" type="button">SHOOT</button>
+          <button class="action-button" id="sprintButton" type="button">SPRINT</button>
         </div>
       </section>
 
-
-      <!-- MATCH INFORMATION -->
       <section class="bottom-grid">
-
         <article class="info-card">
           <div class="card-icon">⌘</div>
-
           <div class="info-card-content">
             <span class="card-kicker">CONTROLS</span>
             <h3>Own the ball.</h3>
-
-            <p>
-              Move with WASD, get close to the ball, and press
-              Space to shoot. Timing and positioning matter.
-            </p>
+            <p>Move with WASD, get close to the ball, and press Space to shoot.</p>
           </div>
         </article>
-
         <article class="info-card">
           <div class="card-icon">◎</div>
-
           <div class="info-card-content">
             <span class="card-kicker">CAMERA</span>
             <h3>Stay in the action.</h3>
-
-            <p>
-              The match view will follow the action, keeping
-              the ball and nearby players in focus.
-            </p>
+            <p>The main camera follows the ball while the minimap shows the full pitch.</p>
           </div>
         </article>
-
         <article class="info-card">
           <div class="card-icon">⚡</div>
-
           <div class="info-card-content">
             <span class="card-kicker">GAMEPLAY</span>
             <h3>Make it count.</h3>
-
-            <p>
-              Find openings, avoid defenders, and put your
-              shots on target to win the match.
-            </p>
+            <p>Find openings, avoid defenders, and put your shots on target.</p>
           </div>
         </article>
-
       </section>
-
     </main>
 
-
-    <!-- FOOTER -->
     <footer class="site-footer">
-      <div class="footer-brand">
-        <span class="footer-mark">K</span>
-        <span>KICKOFF FOOTBALL</span>
-      </div>
-
-      <span class="footer-caption">
-        BUILT FOR THE LOVE OF THE GAME.
-      </span>
-
-      <span class="footer-version">ARCADE EDITION · 0.1</span>
+      <div class="footer-brand"><span class="footer-mark">K</span><span>KICKOFF FOOTBALL</span></div>
+      <span class="footer-caption">BUILT FOR THE LOVE OF THE GAME.</span>
+      <span class="footer-version">ARCADE EDITION · 0.2</span>
     </footer>
 
   </div>
-
-
-  <!-- GAME ENTRY POINT -->
   <script type="module" src="js/main.js"></script>
-
 </body>
 </html>
+```
