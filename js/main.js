@@ -1,3 +1,4 @@
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const minimap = document.getElementById("minimap");
@@ -32,12 +33,11 @@ let stripedPitch = true;
 let lastFrame = 0;
 let kickoffTimer = 0;
 let statusTimer = 0;
-let aiThinkTimer = 0;
 
 const camera = { x: WORLD.width / 2, y: WORLD.height / 2 };
 
-// Formation positions are fractions of the pitch.
-// Blue attacks to the right; Red attacks to the left.
+// 4-3-3 formation.
+// Blue attacks right; Red attacks left.
 const FORMATION_433 = [
   { number: 1, role: "GK", x: 0.045, y: 0.50 },
   { number: 2, role: "DEF", x: 0.17, y: 0.18 },
@@ -81,8 +81,12 @@ function makePlayer(team, data) {
     homeY,
     vx: 0,
     vy: 0,
-    radius: data.role === "GK" ? 21 : data.number === 10 && isBlue ? 23 : 18,
-    speed: data.role === "GK" ? 245 : data.role === "FWD" ? 280 : 265,
+    radius: data.role === "GK"
+      ? 21
+      : data.number === 10 && isBlue ? 23 : 18,
+    speed: data.role === "GK"
+      ? 245
+      : data.role === "FWD" ? 280 : 265,
     color: isBlue ? "#40a5ff" : "#ff5d68",
     number: data.number,
     team,
@@ -99,19 +103,18 @@ function createTeams() {
   for (const data of FORMATION_433) {
     blueTeam.push(makePlayer("BLUE", data));
 
-    // Mirror the formation for the team attacking left.
     redTeam.push(makePlayer("RED", {
       ...data,
       x: 1 - data.x,
-      y: data.y,
-      number: data.number
+      y: data.y
     }));
   }
 }
 
 createTeams();
 
-const blue = blueTeam.find((player) => player.isUser);
+// IMPORTANT: let allows the controlled player to change.
+let blue = blueTeam.find((player) => player.isUser);
 const red = redTeam.find((player) => player.number === 9);
 
 const ball = {
@@ -137,13 +140,16 @@ function updateScoreboard() {
 }
 
 function clampPlayer(player) {
-  const left = FIELD.x + player.radius;
-  const right = FIELD.x + FIELD.width - player.radius;
-  const top = FIELD.y + player.radius;
-  const bottom = FIELD.y + FIELD.height - player.radius;
-
-  player.x = clamp(player.x, left, right);
-  player.y = clamp(player.y, top, bottom);
+  player.x = clamp(
+    player.x,
+    FIELD.x + player.radius,
+    FIELD.x + FIELD.width - player.radius
+  );
+  player.y = clamp(
+    player.y,
+    FIELD.y + player.radius,
+    FIELD.y + FIELD.height - player.radius
+  );
 }
 
 function resetPositions() {
@@ -153,13 +159,15 @@ function resetPositions() {
     player.vx = 0;
     player.vy = 0;
     player.kickCooldown = 0.3 + Math.random() * 0.3;
+    player.isUser = false;
   }
 
-  // Place the user-controlled number 10 nearer the center for kickoff.
+  // Start each kickoff with number 10 under user control.
+  blue = blueTeam.find((player) => player.number === 10);
+  blue.isUser = true;
   blue.x = WORLD.width * 0.46;
   blue.y = WORLD.height / 2;
 
-  // Number 9 starts nearby; everyone else retains their formation.
   const blueStriker = blueTeam.find((p) => p.number === 9);
   blueStriker.x = WORLD.width * 0.48;
   blueStriker.y = WORLD.height / 2 + 65;
@@ -193,8 +201,10 @@ function startMatch() {
   paused = false;
   pauseOverlay.hidden = true;
   pauseButton.textContent = "Ⅱ PAUSE";
+
   resetMatch();
   setStatus("KICKOFF", 1.2);
+
   lastFrame = performance.now();
   requestAnimationFrame(loop);
 }
@@ -246,6 +256,38 @@ function distanceBetween(a, b) {
   return length(a.x - b.x, a.y - b.y);
 }
 
+// PLAYER SWITCHING
+// Q or Tab cycles through the blue team's outfield players.
+// Teammates nearest to the ball appear first in the cycle.
+function switchControlledPlayer() {
+  if (!running || paused || kickoffTimer > 0) return;
+
+  const candidates = blueTeam
+    .filter((player) => player.role !== "GK")
+    .sort((a, b) =>
+      distanceBetween(a, ball) - distanceBetween(b, ball)
+    );
+
+  if (candidates.length < 2) return;
+
+  const currentIndex = candidates.findIndex(
+    (player) => player === blue
+  );
+
+  const nextIndex = currentIndex < 0
+    ? 0
+    : (currentIndex + 1) % candidates.length;
+
+  // The previous player will be managed by AI again.
+  if (blue) blue.isUser = false;
+
+  blue = candidates[nextIndex];
+  blue.isUser = true;
+
+  setStatus(`CONTROLLING BLUE #${blue.number}`, 1.1);
+  renderWhenIdle();
+}
+
 function nearestOutfieldPlayer(team, target) {
   let nearest = null;
   let bestDistance = Infinity;
@@ -265,14 +307,12 @@ function nearestOutfieldPlayer(team, target) {
 
 function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
   const attackDirection = isBlueTeam ? 1 : -1;
-  const ballProgress = (ball.x - (FIELD.x + FIELD.width / 2))
-    / (FIELD.width / 2);
-  const side = isBlueTeam ? 1 : -1;
+  const ballProgress =
+    (ball.x - (FIELD.x + FIELD.width / 2)) / (FIELD.width / 2);
 
   let targetX = player.homeX;
   let targetY = player.homeY;
 
-  // Teammates shift together according to the ball's position.
   targetY += clamp(ball.y - WORLD.height / 2, -260, 260) * 0.28;
 
   if (player.role === "GK") {
@@ -284,7 +324,6 @@ function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
     targetY = WORLD.height / 2
       + clamp(ball.y - WORLD.height / 2, -145, 145) * 0.65;
 
-    // Goalkeepers only come forward a little when play is nearby.
     const nearOwnGoal = isBlueTeam
       ? ball.x < FIELD.x + 450
       : ball.x > FIELD.x + FIELD.width - 450;
@@ -301,7 +340,6 @@ function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
     };
   }
 
-  // Defenders push up slightly when their team has the ball far forward.
   if (player.role === "DEF") {
     targetX += attackDirection * clamp(ballProgress * 85, -35, 85);
   }
@@ -314,25 +352,27 @@ function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
     targetX += attackDirection * clamp(ballProgress * 95, -45, 95);
   }
 
-  // The designated presser actively challenges for the ball.
   if (player === pressingPlayer) {
     return { x: ball.x, y: ball.y };
   }
 
-  // Give nearby teammates passing options rather than sending everyone
-  // directly to the ball.
   const ballDistance = distanceBetween(player, ball);
-  if (player.role !== "GK" && ballDistance < 260) {
+
+  if (ballDistance < 260) {
     const supportOffset = player.number % 2 === 0 ? -100 : 100;
     targetY += supportOffset;
     targetX -= attackDirection * 55;
   }
 
-  // Keep outfielders inside sensible tactical areas.
   targetX = clamp(targetX, FIELD.x + 85, FIELD.x + FIELD.width - 85);
   targetY = clamp(targetY, FIELD.y + 70, FIELD.y + FIELD.height - 70);
 
   return { x: targetX, y: targetY };
+}
+
+function playerTouchesBall(player) {
+  return distanceBetween(player, ball)
+    <= player.radius + ball.radius + 7;
 }
 
 function tryAIKick(player, isBlueTeam) {
@@ -343,19 +383,20 @@ function tryAIKick(player, isBlueTeam) {
     ? FIELD.x + FIELD.width + 30
     : FIELD.x - 30;
 
-  // Prefer aiming at the goal, with a small lane variation.
   const aimY = WORLD.height / 2
     + clamp((ball.y - WORLD.height / 2) * 0.35, -105, 105);
 
   let direction = normalize(goalX - ball.x, aimY - ball.y);
 
-  // When very close to their own goal, defenders clear the ball upfield.
   const ownGoalDanger = isBlueTeam
     ? ball.x < FIELD.x + 300
     : ball.x > FIELD.x + FIELD.width - 300;
 
   if (ownGoalDanger && player.role !== "FWD") {
-    direction = normalize(attackDirection, (player.y - WORLD.height / 2) * 0.002);
+    direction = normalize(
+      attackDirection,
+      (player.y - WORLD.height / 2) * 0.002
+    );
   }
 
   const power = player.role === "FWD" ? 565 : 445;
@@ -385,29 +426,29 @@ function updateTeamAI(team, isBlueTeam, dt, pressingPlayer) {
     const sprint = distance > 300 || player === pressingPlayer;
 
     updatePlayer(player, direction, dt, sprint);
-
     tryAIKick(player, isBlueTeam);
   }
 }
 
 function updateAI(dt) {
-  // One outfield player from each side presses the ball carrier.
   const bluePresser = nearestOutfieldPlayer(blueTeam, ball);
   const redPresser = nearestOutfieldPlayer(redTeam, ball);
 
-  // The user remains in direct control of blue number 10.
-  // The blue presser is another teammate and will support the attack.
   updateTeamAI(blueTeam, true, dt, bluePresser);
   updateTeamAI(redTeam, false, dt, redPresser);
 
-  // Goalkeepers move to track the ball near their own goal.
+  // Goalkeepers remain AI-controlled.
   for (const goalkeeper of [
     blueTeam.find((p) => p.role === "GK"),
     redTeam.find((p) => p.role === "GK")
   ]) {
     const isBlueTeam = goalkeeper.team === "BLUE";
     const target = getAIHomeTarget(goalkeeper, isBlueTeam, null);
-    const direction = normalize(target.x - goalkeeper.x, target.y - goalkeeper.y);
+    const direction = normalize(
+      target.x - goalkeeper.x,
+      target.y - goalkeeper.y
+    );
+
     updatePlayer(goalkeeper, direction, dt);
     tryAIKick(goalkeeper, isBlueTeam);
   }
@@ -416,7 +457,6 @@ function updateAI(dt) {
 function separatePlayers() {
   const players = allPlayers();
 
-  // Resolve overlap between every pair, including teammates.
   for (let i = 0; i < players.length; i++) {
     for (let j = i + 1; j < players.length; j++) {
       const a = players[i];
@@ -451,8 +491,8 @@ function separatePlayers() {
       b.x += nx * overlap * (bWeight / totalWeight);
       b.y += ny * overlap * (bWeight / totalWeight);
 
-      const relativeVelocity = (b.vx - a.vx) * nx
-        + (b.vy - a.vy) * ny;
+      const relativeVelocity =
+        (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
 
       if (relativeVelocity < 0) {
         const impulse = relativeVelocity * 0.5;
@@ -466,11 +506,6 @@ function separatePlayers() {
       clampPlayer(b);
     }
   }
-}
-
-function playerTouchesBall(player) {
-  return distanceBetween(player, ball)
-    <= player.radius + ball.radius + 7;
 }
 
 function updateBall(dt) {
@@ -709,7 +744,7 @@ function drawPlayer(player) {
   ctx.fillStyle = "#00130b66";
   ctx.fill();
 
-  // Highlight the player controlled by the user.
+  // Highlight the currently controlled player.
   if (player.isUser) {
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius + 6, 0, Math.PI * 2);
@@ -790,7 +825,6 @@ function drawMainGame() {
 
   drawPitch(ctx, FIELD.x, FIELD.y, FIELD.width, FIELD.height);
 
-  // Draw the farthest players first so nearby players remain visible.
   const players = allPlayers().sort((a, b) => a.y - b.y);
   for (const player of players) drawPlayer(player);
 
@@ -828,7 +862,6 @@ function drawMinimap() {
 
   drawPitch(mapCtx, pitchX, pitchY, pitchW, pitchH, 12);
 
-  // Show every player on the tactical map.
   for (const player of allPlayers()) {
     const px = pitchX + (player.x - FIELD.x) * scale;
     const py = pitchY + (player.y - FIELD.y) * scale;
@@ -843,7 +876,6 @@ function drawMinimap() {
     mapCtx.stroke();
   }
 
-  // Camera viewport.
   const visibleWorldWidth = canvas.width / CAMERA_ZOOM;
   const visibleWorldHeight = canvas.height / CAMERA_ZOOM;
   const viewX = pitchX
@@ -902,7 +934,9 @@ function update(dt) {
   const movement = getMovement();
   const sprinting = keys.has("shift") || touchMoves.has("sprint");
 
+  // All user movement now targets the currently selected player.
   updatePlayer(blue, movement, dt, sprinting);
+
   updateAI(dt);
   separatePlayers();
   updateBall(dt);
@@ -957,6 +991,13 @@ window.addEventListener("keydown", (event) => {
 
   if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
     event.preventDefault();
+  }
+
+  // Q or Tab switches to another blue outfield player.
+  if ((key === "q" || key === "tab") && !event.repeat) {
+    event.preventDefault();
+    switchControlledPlayer();
+    return;
   }
 
   keys.add(key);
