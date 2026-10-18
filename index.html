@@ -667,21 +667,6 @@
       ctx.strokeStyle = "#174d91";
       ctx.lineWidth = 1.5;
       ctx.stroke();
-
-      // Original facing pointer, unchanged.
-      const angle = Math.atan2(player.facingY, player.facingX);
-
-      ctx.translate(x, y);
-      ctx.rotate(angle);
-
-      ctx.beginPath();
-      ctx.moveTo(radius + 7, 0);
-      ctx.lineTo(radius - 1, -4);
-      ctx.lineTo(radius - 1, 4);
-      ctx.closePath();
-      ctx.fillStyle = "#ffffff";
-      ctx.fill();
-
       ctx.restore();
     }
 
