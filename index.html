@@ -1,923 +1,191 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0b1215">
+
   <title>Kickoff Football</title>
-  <style>
-    * { box-sizing: border-box; }
 
-    body {
-      margin: 0;
-      min-height: 100vh;
-      padding: 20px 12px;
-      display: grid;
-      place-items: center;
-      background: radial-gradient(ellipse at top, #263640, #10171d 70%);
-      color: #edf3f0;
-      font-family: Arial, sans-serif;
-    }
-
-    .app { width: min(100%, 1000px); }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: clamp(22px, 4vw, 32px);
-      letter-spacing: -1px;
-    }
-
-    .accent { color: #80d69a; }
-    .subtitle { margin-top: 6px; color: #9eafb5; font-size: 13px; }
-    .status { color: #a7efbd; font-size: 11px; letter-spacing: 2px; font-weight: bold; }
-    .scoreboard { margin-top: 8px; color: #f4f7f5; font-size: 16px; letter-spacing: 1px; white-space: nowrap; }
-
-    .stadium {
-      padding: 8px;
-      border: 1px solid #40515a;
-      border-radius: 12px;
-      background: #202d34;
-      box-shadow: 0 24px 70px #0006;
-    }
-
-    .viewport {
-      width: 100%;
-      overflow: hidden;
-      border-radius: 5px;
-      background: #216c3c;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: auto;
-      outline: none;
-      touch-action: none;
-    }
-
-    .controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      padding: 14px 4px 4px;
-    }
-
-    .group { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
-    .label { color: #9eafb5; font-size: 12px; margin-right: 3px; }
-
-    button {
-      padding: 9px 12px;
-      border: 1px solid #455760;
-      border-radius: 6px;
-      background: #293840;
-      color: #e5eeeb;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    button:hover { border-color: #91c7a0; }
-
-    button[aria-pressed="true"] {
-      background: #285f40;
-      border-color: #71bd8a;
-      color: white;
-    }
-
-    button:focus-visible {
-      outline: 2px solid #a7efbd;
-      outline-offset: 3px;
-    }
-
-    .note {
-      margin: 12px 2px 0;
-      color: #a3b2b7;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    @media (max-width: 600px) {
-      body { padding: 14px 8px; }
-      .stadium { padding: 5px; }
-      .controls { align-items: flex-start; }
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
-  <main class="app">
-    <header>
-      <div>
-        <h1>KICKOFF <span class="accent">FOOTBALL</span></h1>
-        <div class="subtitle">THE PITCH · BLUE VS RED AI</div>
-      </div>
+  <main class="shell">
 
-      <div class="status">
-        <div>● DEVELOPMENT</div>
-        <div id="scoreboard" class="scoreboard">BLUE 0 — 0 RED</div>
-      </div>
+    <!-- HEADER -->
+    <header class="topbar">
+      <a class="brand" href="#">
+        <span class="brand-mark">K</span>
+        <span>
+          KICKOFF <span class="brand-light">FOOTBALL</span>
+          <small>THE BEAUTIFUL GAME, YOUR WAY</small>
+        </span>
+      </a>
+
+      <span class="top-status">
+        <span class="live-dot"></span>
+        PLAYGROUND BUILD
+      </span>
     </header>
 
-    <section class="stadium">
-      <div class="viewport">
-        <canvas id="game" width="1200" height="760"
-          aria-label="Football pitch with blue player, red AI opponent, and ball"
-          tabindex="0"></canvas>
-      </div>
+    <!-- HERO / MAIN MENU -->
+    <section class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">01 / QUICK MATCH</p>
 
-      <div class="controls">
-        <div class="group">
-          <span class="label">CAMERA</span>
-          <button id="full" aria-pressed="true">Wider view</button>
-          <button id="zoom" aria-pressed="false">Closer view</button>
+        <h1>Own the<br><em>moment.</em></h1>
+
+        <p class="intro">
+          A fast, top-down football game.
+          Take on the opposition, find your angle,
+          and put the ball in the net.
+        </p>
+
+        <div class="hero-actions">
+          <button id="playButton" class="primary-button">
+            ▶ PLAY MATCH
+          </button>
+
+          <button id="resetButton" class="quiet-button">
+            Reset match ↺
+          </button>
         </div>
 
-        <div class="group">
-          <span class="label">GRASS</span>
-          <button id="stripes" aria-pressed="true">Stripes</button>
-          <button id="rings" aria-pressed="false">Concentric</button>
+        <div class="key-guide">
+          <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span>
+          <span><kbd>SPACE</kbd> Shoot on contact</span>
+        </div>
+      </div>
+
+      <!-- SCOREBOARD -->
+      <div class="match-card">
+        <div class="match-card-top">
+          <span>EXHIBITION MATCH</span>
+          <span class="pill">PRACTICE</span>
+        </div>
+
+        <div class="scoreline">
+          <div class="team blue-team">
+            <span class="team-badge">B</span>
+            <span>BLUE<br><small>PLAYER</small></span>
+          </div>
+
+          <div class="score">
+            <strong id="blueScore">0</strong>
+            <i>:</i>
+            <strong id="redScore">0</strong>
+          </div>
+
+          <div class="team red-team">
+            <span class="team-badge">R</span>
+            <span>RED<br><small>AI OPPONENT</small></span>
+          </div>
+        </div>
+
+        <div class="match-card-bottom">
+          <span id="matchStatus">READY WHEN YOU ARE</span>
+          <span id="clock">00:00</span>
         </div>
       </div>
     </section>
 
-    <p class="note">
-      Controls: WASD to move. Move around the ball to adjust your
-      kicking angle. Space to shoot only when touching the ball.
-      The red AI chases the ball and attacks the left goal.
-    </p>
+    <!-- PLAYING FIELD -->
+    <section class="game-panel" id="match">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">LIVE PITCH</p>
+          <h2>Matchday <span>01</span></h2>
+        </div>
+
+        <div class="panel-tools">
+          <span class="legend">
+            <i class="legend-blue"></i> You
+          </span>
+
+          <span class="legend">
+            <i class="legend-red"></i> AI
+          </span>
+
+          <button
+            id="cameraButton"
+            class="small-button"
+            aria-pressed="false"
+          >
+            Closer view
+          </button>
+
+          <button
+            id="stripesButton"
+            class="small-button"
+          >
+            Striped grass
+          </button>
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas
+          id="game"
+          width="1200"
+          height="760"
+          aria-label="Top-down football match"
+        ></canvas>
+
+        <div
+          id="goalBanner"
+          class="goal-banner"
+          aria-live="polite"
+        ></div>
+      </div>
+
+      <div class="pitch-footer">
+        <span><i class="live-dot"></i> MATCH ENGINE</span>
+        <span>MOVE AROUND THE BALL TO AIM YOUR KICK</span>
+      </div>
+    </section>
+
+    <!-- GAME INFORMATION -->
+    <section class="bottom-grid">
+      <article class="info-card">
+        <p class="eyebrow">HOW TO PLAY</p>
+        <h3>Make your angle.</h3>
+        <p>
+          Move close to the ball. Position yourself opposite
+          your target, then press Space to shoot.
+        </p>
+      </article>
+
+      <article class="info-card">
+        <p class="eyebrow">OPPOSITION REPORT</p>
+        <h3>Red is thinking.</h3>
+        <p>
+          The red opponent will chase the ball, challenge
+          your player, and try to score.
+        </p>
+      </article>
+
+      <article class="info-card">
+        <p class="eyebrow">THE ROAD AHEAD</p>
+        <h3>Build your club.</h3>
+        <p>
+          Future upgrades can include teams, formations,
+          player attributes, tactics, and career mode.
+        </p>
+      </article>
+    </section>
+
+    <!-- FOOTER -->
+    <footer>
+      <span>KICKOFF FOOTBALL / PROTOTYPE 0.1</span>
+      <span>BUILT FOR THE LOVE OF THE GAME</span>
+    </footer>
+
   </main>
 
-  <script>
-    // Canvas
-    const canvas = document.getElementById("game");
-    const ctx = canvas.getContext("2d");
-
-    const W = canvas.width;
-    const H = canvas.height;
-
-    // World coordinates
-    const field = { x: 80, y: 40, w: 1040, h: 680 };
-    const centerX = field.x + field.w / 2;
-    const centerY = field.y + field.h / 2;
-    const GOAL_HEIGHT = 112;
-    const GOAL_WIDTH = 35;
-
-    const state = {
-      camera: "full",
-      grass: "stripes",
-      leftScore: 0,
-      rightScore: 0
-    };
-
-    // Blue player: controlled by you.
-    const player = {
-      x: centerX - 125,
-      y: centerY,
-      radius: 12,
-      color: "#2587ff",
-      speed: 120,
-      vx: 0,
-      vy: 0,
-      facingX: 1,
-      facingY: 0
-    };
-
-    // Red player: controlled by AI.
-    const ai = {
-      x: centerX + 125,
-      y: centerY,
-      radius: 12,
-      color: "#f04444",
-      speed: 112,
-      vx: 0,
-      vy: 0,
-      kickCooldown: 0
-    };
-
-    const ball = {
-      x: centerX,
-      y: centerY,
-      radius: 11,
-      vx: 0,
-      vy: 0,
-      friction: 2.8,
-      restitution: 0.75
-    };
-
-    const keys = new Set();
-    let shootRequested = false;
-
-    const movementKeys = new Set(["w", "a", "s", "d"]);
-
-    // Controls: WASD to move; Space to shoot.
-    window.addEventListener("keydown", event => {
-      const key = event.key.toLowerCase();
-
-      if (movementKeys.has(key)) {
-        event.preventDefault();
-        keys.add(key);
-      }
-
-      if (event.code === "Space") {
-        event.preventDefault();
-
-        if (!event.repeat) shootRequested = true;
-      }
-    });
-
-    window.addEventListener("keyup", event => {
-      keys.delete(event.key.toLowerCase());
-    });
-
-    window.addEventListener("blur", () => {
-      keys.clear();
-      shootRequested = false;
-    });
-
-    function keepInsidePitch(entity) {
-      const minX = field.x + entity.radius;
-      const maxX = field.x + field.w - entity.radius;
-      const minY = field.y + entity.radius;
-      const maxY = field.y + field.h - entity.radius;
-
-      if (entity.x < minX) {
-        entity.x = minX;
-        entity.vx = Math.max(0, entity.vx);
-      }
-
-      if (entity.x > maxX) {
-        entity.x = maxX;
-        entity.vx = Math.min(0, entity.vx);
-      }
-
-      if (entity.y < minY) {
-        entity.y = minY;
-        entity.vy = Math.max(0, entity.vy);
-      }
-
-      if (entity.y > maxY) {
-        entity.y = maxY;
-        entity.vy = Math.min(0, entity.vy);
-      }
-    }
-
-    function updatePlayer(dt) {
-      let dx = 0;
-      let dy = 0;
-
-      if (keys.has("a")) dx--;
-      if (keys.has("d")) dx++;
-      if (keys.has("w")) dy--;
-      if (keys.has("s")) dy++;
-
-      // Normalize movement so diagonals aren't faster.
-      if (dx || dy) {
-        const length = Math.hypot(dx, dy);
-        dx /= length;
-        dy /= length;
-
-        player.facingX = dx;
-        player.facingY = dy;
-      }
-
-      const acceleration = 350;
-      const friction = 5;
-
-      if (dx || dy) {
-        player.vx += dx * acceleration * dt;
-        player.vy += dy * acceleration * dt;
-      } else {
-        const drag = Math.exp(-friction * dt);
-        player.vx *= drag;
-        player.vy *= drag;
-      }
-
-      const velocity = Math.hypot(player.vx, player.vy);
-
-      if (velocity > player.speed) {
-        player.vx = player.vx / velocity * player.speed;
-        player.vy = player.vy / velocity * player.speed;
-      }
-
-      player.x += player.vx * dt;
-      player.y += player.vy * dt;
-
-      keepInsidePitch(player);
-    }
-
-    // AI chases the ball and attempts to shoot toward the left goal.
-    function updateAI(dt) {
-      ai.kickCooldown = Math.max(0, ai.kickCooldown - dt);
-
-      const goalX = field.x - GOAL_WIDTH;
-      const goalY = centerY;
-
-      let awayX = ball.x - goalX;
-      let awayY = ball.y - goalY;
-      let awayLength = Math.hypot(awayX, awayY);
-
-      if (awayLength < 0.001) {
-        awayX = 1;
-        awayY = 0;
-        awayLength = 1;
-      }
-
-      awayX /= awayLength;
-      awayY /= awayLength;
-
-      const approachDistance = ai.radius + ball.radius + 7;
-
-      let targetX = ball.x + awayX * approachDistance;
-      let targetY = ball.y + awayY * approachDistance;
-
-      targetX = Math.max(
-        field.x + ai.radius,
-        Math.min(field.x + field.w - ai.radius, targetX)
-      );
-
-      targetY = Math.max(
-        field.y + ai.radius,
-        Math.min(field.y + field.h - ai.radius, targetY)
-      );
-
-      const toX = targetX - ai.x;
-      const toY = targetY - ai.y;
-      const distanceToTarget = Math.hypot(toX, toY);
-
-      let desiredVX = 0;
-      let desiredVY = 0;
-
-      if (distanceToTarget > 3) {
-        desiredVX = toX / distanceToTarget * ai.speed;
-        desiredVY = toY / distanceToTarget * ai.speed;
-      }
-
-      const response = Math.min(1, 5 * dt);
-      ai.vx += (desiredVX - ai.vx) * response;
-      ai.vy += (desiredVY - ai.vy) * response;
-
-      ai.x += ai.vx * dt;
-      ai.y += ai.vy * dt;
-
-      keepInsidePitch(ai);
-
-      const ballDX = ball.x - ai.x;
-      const ballDY = ball.y - ai.y;
-      const ballDistance = Math.hypot(ballDX, ballDY);
-      const kickRange = ai.radius + ball.radius + 1;
-
-      if (ballDistance <= kickRange && ai.kickCooldown <= 0) {
-        const aimX = goalX - ball.x;
-        const aimY = goalY - ball.y;
-        const aimLength = Math.hypot(aimX, aimY);
-
-        if (aimLength > 0.001) {
-          const shotPower = 410;
-
-          ball.vx = (aimX / aimLength) * shotPower + ai.vx * 0.12;
-          ball.vy = (aimY / aimLength) * shotPower + ai.vy * 0.12;
-
-          ai.kickCooldown = 0.9;
-        }
-      }
-    }
-
-    // Blue player can shoot only when touching the ball.
-    function shootBall() {
-      const dx = ball.x - player.x;
-      const dy = ball.y - player.y;
-      const distance = Math.hypot(dx, dy);
-
-      if (distance > player.radius + ball.radius + 1) return;
-      if (distance < 0.001) return;
-
-      const shotPower = 480;
-      const directionX = dx / distance;
-      const directionY = dy / distance;
-
-      ball.vx = directionX * shotPower + player.vx * 0.15;
-      ball.vy = directionY * shotPower + player.vy * 0.15;
-    }
-
-    function resetAfterGoal() {
-      ball.x = centerX;
-      ball.y = centerY;
-      ball.vx = 0;
-      ball.vy = 0;
-
-      player.x = centerX - 125;
-      player.y = centerY;
-      player.vx = 0;
-      player.vy = 0;
-      player.facingX = 1;
-      player.facingY = 0;
-
-      ai.x = centerX + 125;
-      ai.y = centerY;
-      ai.vx = 0;
-      ai.vy = 0;
-      ai.kickCooldown = 0.5;
-
-      keys.clear();
-      shootRequested = false;
-
-      document.getElementById("scoreboard").textContent =
-        `BLUE ${state.leftScore} — ${state.rightScore} RED`;
-    }
-
-    function updateBall(dt) {
-      ball.x += ball.vx * dt;
-      ball.y += ball.vy * dt;
-
-      const drag = Math.exp(-ball.friction * dt);
-      ball.vx *= drag;
-      ball.vy *= drag;
-
-      if (Math.hypot(ball.vx, ball.vy) < 2) {
-        ball.vx = 0;
-        ball.vy = 0;
-      }
-
-      const minX = field.x + ball.radius;
-      const maxX = field.x + field.w - ball.radius;
-      const minY = field.y + ball.radius;
-      const maxY = field.y + field.h - ball.radius;
-
-      const goalTop = centerY - GOAL_HEIGHT / 2 + ball.radius;
-      const goalBottom = centerY + GOAL_HEIGHT / 2 - ball.radius;
-      const inGoalMouth = ball.y >= goalTop && ball.y <= goalBottom;
-
-      // Left goal: RED scores.
-      if (inGoalMouth && ball.x + ball.radius <= field.x) {
-        state.rightScore++;
-        resetAfterGoal();
-        return;
-      }
-
-      // Right goal: BLUE scores.
-      if (inGoalMouth && ball.x - ball.radius >= field.x + field.w) {
-        state.leftScore++;
-        resetAfterGoal();
-        return;
-      }
-
-      if (ball.x < minX && !inGoalMouth) {
-        ball.x = minX;
-        ball.vx = Math.abs(ball.vx) * ball.restitution;
-      }
-
-      if (ball.x > maxX && !inGoalMouth) {
-        ball.x = maxX;
-        ball.vx = -Math.abs(ball.vx) * ball.restitution;
-      }
-
-      if (ball.y < minY) {
-        ball.y = minY;
-        ball.vy = Math.abs(ball.vy) * ball.restitution;
-      }
-
-      if (ball.y > maxY) {
-        ball.y = maxY;
-        ball.vy = -Math.abs(ball.vy) * ball.restitution;
-      }
-    }
-
-    // Ball collision with either player.
-    function handleEntityBallCollision(entity) {
-      const dx = ball.x - entity.x;
-      const dy = ball.y - entity.y;
-      const distance = Math.hypot(dx, dy);
-      const minDistance = entity.radius + ball.radius;
-
-      if (distance >= minDistance) return;
-
-      const nx = distance > 0 ? dx / distance : 1;
-      const ny = distance > 0 ? dy / distance : 0;
-      const overlap = minDistance - distance;
-
-      ball.x += nx * overlap;
-      ball.y += ny * overlap;
-
-      const impactSpeed = entity.vx * nx + entity.vy * ny;
-
-      if (impactSpeed > 0) {
-        ball.vx += nx * impactSpeed * 0.72;
-        ball.vy += ny * impactSpeed * 0.72;
-
-        const tangentX = -ny;
-        const tangentY = nx;
-        const sideSpeed =
-          entity.vx * tangentX + entity.vy * tangentY;
-
-        ball.vx += tangentX * sideSpeed * 0.12;
-        ball.vy += tangentY * sideSpeed * 0.12;
-      }
-
-      const goalTop = centerY - GOAL_HEIGHT / 2 + ball.radius;
-      const goalBottom = centerY + GOAL_HEIGHT / 2 - ball.radius;
-      const inGoalMouth = ball.y >= goalTop && ball.y <= goalBottom;
-
-      if (inGoalMouth) {
-        ball.x = Math.max(
-          field.x - ball.radius,
-          Math.min(field.x + field.w + ball.radius, ball.x)
-        );
-      } else {
-        ball.x = Math.max(
-          field.x + ball.radius,
-          Math.min(field.x + field.w - ball.radius, ball.x)
-        );
-      }
-
-      ball.y = Math.max(
-        field.y + ball.radius,
-        Math.min(field.y + field.h - ball.radius, ball.y)
-      );
-    }
-
-    // Prevent blue and red players from overlapping or walking through each other.
-    function handlePlayerCollision() {
-      const dx = ai.x - player.x;
-      const dy = ai.y - player.y;
-      const distance = Math.hypot(dx, dy);
-      const minDistance = player.radius + ai.radius;
-
-      if (distance >= minDistance) return;
-
-      const nx = distance > 0.001 ? dx / distance : 1;
-      const ny = distance > 0.001 ? dy / distance : 0;
-
-      // Separate both players equally.
-      const overlap = minDistance - distance;
-
-      player.x -= nx * overlap / 2;
-      player.y -= ny * overlap / 2;
-      ai.x += nx * overlap / 2;
-      ai.y += ny * overlap / 2;
-
-      // Remove velocity pushing them into one another.
-      const relativeSpeed =
-        (ai.vx - player.vx) * nx +
-        (ai.vy - player.vy) * ny;
-
-      if (relativeSpeed < 0) {
-        const impulse = -relativeSpeed / 2;
-
-        player.vx -= nx * impulse;
-        player.vy -= ny * impulse;
-        ai.vx += nx * impulse;
-        ai.vy += ny * impulse;
-      }
-
-      keepInsidePitch(player);
-      keepInsidePitch(ai);
-    }
-
-    function drawGrass() {
-      const { x, y, w, h } = field;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(x, y, w, h);
-      ctx.clip();
-
-      ctx.fillStyle = "#277b43";
-      ctx.fillRect(x, y, w, h);
-
-      if (state.grass === "stripes") {
-        const count = 10;
-        const stripeWidth = w / count;
-
-        for (let i = 0; i < count; i++) {
-          ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
-          ctx.fillRect(
-            x + i * stripeWidth, y, stripeWidth + 0.5, h
-          );
-        }
-      } else {
-        const maxRadius = Math.hypot(w / 2, h / 2) + 80;
-        let index = 0;
-
-        for (let radius = maxRadius; radius >= 0; radius -= 42) {
-          ctx.beginPath();
-          ctx.ellipse(
-            centerX, centerY, radius * 1.45, radius,
-            0, 0, Math.PI * 2
-          );
-          ctx.fillStyle = index % 2 === 0 ? "#2e8749" : "#24763e";
-          ctx.fill();
-          index++;
-        }
-      }
-
-      ctx.restore();
-    }
-
-    function drawLine(x1, y1, x2, y2) {
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
-    }
-
-    function drawCircle(x, y, radius, fill = false) {
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-
-      if (fill) ctx.fill();
-      else ctx.stroke();
-    }
-
-    function drawGoal(side) {
-      const { x, y, w, h } = field;
-      const goalY = y + (h - GOAL_HEIGHT) / 2;
-      const goalX = side === "left" ? x - GOAL_WIDTH : x + w;
-
-      ctx.fillStyle = "#dbe9dd22";
-      ctx.fillRect(goalX, goalY, GOAL_WIDTH, GOAL_HEIGHT);
-
-      ctx.strokeStyle = "#dce6df99";
-      ctx.lineWidth = 1;
-
-      for (let i = 1; i < 5; i++) {
-        const nx = goalX + GOAL_WIDTH * i / 5;
-        drawLine(nx, goalY, nx, goalY + GOAL_HEIGHT);
-      }
-
-      for (let i = 1; i < 6; i++) {
-        const ny = goalY + GOAL_HEIGHT * i / 6;
-        drawLine(goalX, ny, goalX + GOAL_WIDTH, ny);
-      }
-
-      ctx.strokeStyle = "#f4f5eb";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(goalX, goalY, GOAL_WIDTH, GOAL_HEIGHT);
-    }
-
-    function drawMarkings() {
-      const { x, y, w, h } = field;
-
-      ctx.save();
-      ctx.strokeStyle = "#f3f5e9";
-      ctx.fillStyle = "#f3f5e9";
-      ctx.lineWidth = 3;
-
-      ctx.strokeRect(x, y, w, h);
-      drawLine(centerX, y, centerX, y + h);
-      drawCircle(centerX, centerY, 91);
-      drawCircle(centerX, centerY, 4, true);
-
-      const penaltyDepth = 165;
-      const penaltyHeight = 360;
-      const goalAreaDepth = 62;
-      const goalAreaHeight = 190;
-      const spotDistance = 110;
-
-      for (const side of ["left", "right"]) {
-        const isLeft = side === "left";
-        const boxX = isLeft ? x : x + w - penaltyDepth;
-        const goalBoxX = isLeft ? x : x + w - goalAreaDepth;
-
-        ctx.strokeRect(
-          boxX, centerY - penaltyHeight / 2,
-          penaltyDepth, penaltyHeight
-        );
-
-        ctx.strokeRect(
-          goalBoxX, centerY - goalAreaHeight / 2,
-          goalAreaDepth, goalAreaHeight
-        );
-
-        const spotX = isLeft ? x + spotDistance : x + w - spotDistance;
-        drawCircle(spotX, centerY, 4, true);
-
-        ctx.beginPath();
-
-        if (isLeft) {
-          ctx.arc(spotX, centerY, 91, -0.88, 0.88);
-        } else {
-          ctx.arc(
-            spotX, centerY, 91,
-            Math.PI - 0.88, Math.PI + 0.88
-          );
-        }
-
-        ctx.stroke();
-      }
-
-      ctx.restore();
-    }
-
-    function drawBall() {
-      const { x, y, radius } = ball;
-
-      ctx.save();
-
-      ctx.beginPath();
-      ctx.ellipse(
-        x + 3, y + 5, radius * 0.95, radius * 0.7,
-        0, 0, Math.PI * 2
-      );
-      ctx.fillStyle = "#0005";
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = "#f7f7f0";
-      ctx.fill();
-
-      ctx.beginPath();
-
-      for (let i = 0; i < 5; i++) {
-        const angle = -Math.PI / 2 + i * Math.PI * 2 / 5;
-        const px = x + Math.cos(angle) * radius * 0.42;
-        const py = y + Math.sin(angle) * radius * 0.42;
-
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      }
-
-      ctx.closePath();
-      ctx.fillStyle = "#252b2d";
-      ctx.fill();
-
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = "#202629";
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
-    function drawPlayer(entity, isAI = false) {
-      const { x, y, radius, color } = entity;
-
-      ctx.save();
-
-      // Player shadow
-      ctx.beginPath();
-      ctx.ellipse(
-        x + 2, y + 4, radius + 1, radius * 0.8,
-        0, 0, Math.PI * 2
-      );
-      ctx.fillStyle = "#0005";
-      ctx.fill();
-
-      // White outer ring
-      ctx.beginPath();
-      ctx.arc(x, y, radius + 2, 0, Math.PI * 2);
-      ctx.fillStyle = "#f5f7f2";
-      ctx.fill();
-
-      // Team-colored body
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-
-      const gradient = ctx.createRadialGradient(
-        x - radius * 0.35, y - radius * 0.4,
-        1, x, y, radius
-      );
-
-      if (isAI) {
-        gradient.addColorStop(0, "#ff8989");
-        gradient.addColorStop(1, color);
-      } else {
-        gradient.addColorStop(0, "#62b0ff");
-        gradient.addColorStop(1, color);
-      }
-
-      ctx.fillStyle = gradient;
-      ctx.fill();
-      ctx.strokeStyle = isAI ? "#921f2b" : "#174d91";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
-    // Original horizontal camera.
-    function draw() {
-      ctx.clearRect(0, 0, W, H);
-      ctx.fillStyle = "#1c292b";
-      ctx.fillRect(0, 0, W, H);
-
-      const scale = state.camera === "zoom" ? 1.15 : 0.90;
-
-      const viewW = W / scale;
-      const viewH = H / scale;
-
-      const worldLeft = field.x - GOAL_WIDTH - 4;
-      const worldRight = field.x + field.w + GOAL_WIDTH + 4;
-
-      let cameraX;
-      let cameraY;
-
-      if (viewW >= worldRight - worldLeft) {
-        cameraX = (worldLeft + worldRight) / 2;
-      } else {
-        cameraX = Math.max(
-          worldLeft + viewW / 2,
-          Math.min(worldRight - viewW / 2, ball.x)
-        );
-      }
-
-      if (viewH >= field.h) {
-        cameraY = centerY;
-      } else {
-        cameraY = Math.max(
-          field.y + viewH / 2,
-          Math.min(field.y + field.h - viewH / 2, ball.y)
-        );
-      }
-
-      ctx.save();
-      ctx.translate(W / 2, H / 2);
-      ctx.scale(scale, scale);
-      ctx.translate(-cameraX, -cameraY);
-
-      drawGrass();
-      drawMarkings();
-      drawGoal("left");
-      drawGoal("right");
-      drawPlayer(player);
-      drawPlayer(ai, true);
-      drawBall();
-
-      ctx.restore();
-    }
-
-    function setOption(group, value) {
-      state[group] = value;
-
-      const ids = group === "camera"
-        ? ["full", "zoom"]
-        : ["stripes", "rings"];
-
-      for (const id of ids) {
-        document.getElementById(id).setAttribute(
-          "aria-pressed",
-          String(id === value)
-        );
-      }
-    }
-
-    document.getElementById("full").addEventListener(
-      "click", () => setOption("camera", "full")
-    );
-
-    document.getElementById("zoom").addEventListener(
-      "click", () => setOption("camera", "zoom")
-    );
-
-    document.getElementById("stripes").addEventListener(
-      "click", () => setOption("grass", "stripes")
-    );
-
-    document.getElementById("rings").addEventListener(
-      "click", () => setOption("grass", "rings")
-    );
-
-    let previousTime = 0;
-
-    function gameLoop(timestamp) {
-      const dt = previousTime === 0
-        ? 0
-        : Math.min((timestamp - previousTime) / 1000, 0.05);
-
-      previousTime = timestamp;
-
-      updatePlayer(dt);
-      updateAI(dt);
-
-      // Resolve player-vs-player collision before ball collisions.
-      handlePlayerCollision();
-
-      handleEntityBallCollision(player);
-      handleEntityBallCollision(ai);
-
-      if (shootRequested) {
-        shootBall();
-        shootRequested = false;
-      }
-
-      updateBall(dt);
-      draw();
-
-      requestAnimationFrame(gameLoop);
-    }
-
-    requestAnimationFrame(gameLoop);
-  </script>
+  <!-- GAME JAVASCRIPT -->
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
+```
