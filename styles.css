@@ -293,38 +293,33 @@ button:focus-visible {
 .tactical-map {
   position: absolute;
   z-index: 5;
-  top: 16px;
-  right: 16px;
-  width: clamp(175px, 28%, 330px);
-  padding: 10px;
-  border: 1px solid #93bce04d;
-  border-radius: 8px;
-  background: #071523eF;
-  box-shadow: 0 8px 30px #0007, inset 0 1px #ffffff0c;
-  backdrop-filter: blur(9px);
+  top: 12px;
+  right: 12px;
+  width: clamp(140px, 22%, 250px);
+  padding: 7px;
+  border: 1px solid #93bce044;
+  border-radius: 6px;
+  background: rgba(7, 21, 35, 0.74);
+  box-shadow: 0 4px 16px #0004;
+  backdrop-filter: blur(3px);
 }
 
 .map-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 5px;
   color: #e7f2ff;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 800;
-  letter-spacing: 1.1px;
+  letter-spacing: 0.8px;
 }
 
 .map-heading > span:first-child {
   display: flex;
   align-items: center;
-  gap: 7px;
-}
-
-.map-live {
-  color: #4ce6a0;
-  font-size: 8px;
+  gap: 5px;
 }
 
 #minimap {
@@ -332,7 +327,7 @@ button:focus-visible {
   width: 100%;
   height: auto;
   aspect-ratio: 360 / 210;
-  border: 1px solid #c6f5d34d;
+  border: 1px solid #c6f5d333;
   border-radius: 3px;
   background: #176d3c;
 }
@@ -341,12 +336,11 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
-  margin-top: 9px;
-  color: #a9bdd0;
-  font-size: 8px;
+  gap: 4px;
+  margin-top: 6px;
+  color: #c1d0df;
+  font-size: 7px;
   font-weight: 800;
-  letter-spacing: .5px;
 }
 
 .map-legend span {
