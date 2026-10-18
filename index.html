@@ -119,7 +119,7 @@
     <header>
       <div>
         <h1>KICKOFF <span class="accent">FOOTBALL</span></h1>
-        <div class="subtitle">THE PITCH · PLAYER PREVIEW</div>
+        <div class="subtitle">THE PITCH · BLUE VS RED AI</div>
       </div>
 
       <div class="status">
@@ -131,7 +131,7 @@
     <section class="stadium">
       <div class="viewport">
         <canvas id="game" width="1200" height="760"
-          aria-label="Horizontal football pitch with a blue player and ball"
+          aria-label="Football pitch with blue player, red AI opponent, and ball"
           tabindex="0"></canvas>
       </div>
 
@@ -152,8 +152,8 @@
 
     <p class="note">
       Controls: WASD to move. Move around the ball to adjust your
-      kicking angle. Space to shoot when close enough. The horizontal
-      camera follows the ball without rotating the pitch.
+      kicking angle. Space to shoot when close enough. The red AI
+      chases the ball and attacks the left goal.
     </p>
   </main>
 
@@ -179,6 +179,7 @@
       rightScore: 0
     };
 
+    // Blue player: controlled by you.
     const player = {
       x: centerX - 125,
       y: centerY,
@@ -189,6 +190,18 @@
       vy: 0,
       facingX: 1,
       facingY: 0
+    };
+
+    // Red player: controlled by AI.
+    const ai = {
+      x: centerX + 125,
+      y: centerY,
+      radius: 12,
+      color: "#f04444",
+      speed: 112,
+      vx: 0,
+      vy: 0,
+      kickCooldown: 0
     };
 
     const ball = {
@@ -218,9 +231,7 @@
       if (event.code === "Space") {
         event.preventDefault();
 
-        if (!event.repeat) {
-          shootRequested = true;
-        }
+        if (!event.repeat) shootRequested = true;
       }
     });
 
@@ -233,6 +244,33 @@
       shootRequested = false;
     });
 
+    function keepInsidePitch(entity) {
+      const minX = field.x + entity.radius;
+      const maxX = field.x + field.w - entity.radius;
+      const minY = field.y + entity.radius;
+      const maxY = field.y + field.h - entity.radius;
+
+      if (entity.x < minX) {
+        entity.x = minX;
+        entity.vx = Math.max(0, entity.vx);
+      }
+
+      if (entity.x > maxX) {
+        entity.x = maxX;
+        entity.vx = Math.min(0, entity.vx);
+      }
+
+      if (entity.y < minY) {
+        entity.y = minY;
+        entity.vy = Math.max(0, entity.vy);
+      }
+
+      if (entity.y > maxY) {
+        entity.y = maxY;
+        entity.vy = Math.min(0, entity.vy);
+      }
+    }
+
     function updatePlayer(dt) {
       let dx = 0;
       let dy = 0;
@@ -242,13 +280,11 @@
       if (keys.has("w")) dy--;
       if (keys.has("s")) dy++;
 
-      // Normalize movement so diagonals aren't faster.
       if (dx || dy) {
         const length = Math.hypot(dx, dy);
         dx /= length;
         dy /= length;
 
-        // Preserve the original facing indicator behavior.
         player.facingX = dx;
         player.facingY = dy;
       }
@@ -275,29 +311,90 @@
       player.x += player.vx * dt;
       player.y += player.vy * dt;
 
-      const minX = field.x + player.radius;
-      const maxX = field.x + field.w - player.radius;
-      const minY = field.y + player.radius;
-      const maxY = field.y + field.h - player.radius;
+      keepInsidePitch(player);
+    }
 
-      if (player.x < minX) {
-        player.x = minX;
-        player.vx = Math.max(0, player.vx);
+    // AI behaviour:
+    // Position itself behind the ball relative to the left goal,
+    // move toward that position, and shoot when close enough.
+    function updateAI(dt) {
+      ai.kickCooldown = Math.max(0, ai.kickCooldown - dt);
+
+      const goalX = field.x - GOAL_WIDTH;
+      const goalY = centerY;
+
+      // Direction from the left goal toward the ball.
+      // The AI approaches from the opposite side so the ball
+      // can be kicked toward the left goal.
+      let awayX = ball.x - goalX;
+      let awayY = ball.y - goalY;
+      let awayLength = Math.hypot(awayX, awayY);
+
+      if (awayLength < 0.001) {
+        awayX = 1;
+        awayY = 0;
+        awayLength = 1;
       }
 
-      if (player.x > maxX) {
-        player.x = maxX;
-        player.vx = Math.min(0, player.vx);
+      awayX /= awayLength;
+      awayY /= awayLength;
+
+      const approachDistance = ai.radius + ball.radius + 7;
+      let targetX = ball.x + awayX * approachDistance;
+      let targetY = ball.y + awayY * approachDistance;
+
+      // Keep the AI's target inside the pitch.
+      targetX = Math.max(
+        field.x + ai.radius,
+        Math.min(field.x + field.w - ai.radius, targetX)
+      );
+
+      targetY = Math.max(
+        field.y + ai.radius,
+        Math.min(field.y + field.h - ai.radius, targetY)
+      );
+
+      const toX = targetX - ai.x;
+      const toY = targetY - ai.y;
+      const distanceToTarget = Math.hypot(toX, toY);
+
+      let desiredVX = 0;
+      let desiredVY = 0;
+
+      if (distanceToTarget > 3) {
+        desiredVX = toX / distanceToTarget * ai.speed;
+        desiredVY = toY / distanceToTarget * ai.speed;
       }
 
-      if (player.y < minY) {
-        player.y = minY;
-        player.vy = Math.max(0, player.vy);
-      }
+      // Smooth acceleration makes the AI movement less robotic.
+      const response = Math.min(1, 5 * dt);
+      ai.vx += (desiredVX - ai.vx) * response;
+      ai.vy += (desiredVY - ai.vy) * response;
 
-      if (player.y > maxY) {
-        player.y = maxY;
-        player.vy = Math.min(0, player.vy);
+      ai.x += ai.vx * dt;
+      ai.y += ai.vy * dt;
+
+      keepInsidePitch(ai);
+
+      // Shoot toward the left goal when close to the ball.
+      const ballDX = ball.x - ai.x;
+      const ballDY = ball.y - ai.y;
+      const ballDistance = Math.hypot(ballDX, ballDY);
+      const kickRange = ai.radius + ball.radius + 16;
+
+      if (ballDistance <= kickRange && ai.kickCooldown <= 0) {
+        const aimX = goalX - ball.x;
+        const aimY = goalY - ball.y;
+        const aimLength = Math.hypot(aimX, aimY);
+
+        if (aimLength > 0.001) {
+          const shotPower = 410;
+
+          ball.vx = (aimX / aimLength) * shotPower + ai.vx * 0.12;
+          ball.vy = (aimY / aimLength) * shotPower + ai.vy * 0.12;
+
+          ai.kickCooldown = 0.9;
+        }
       }
     }
 
@@ -307,15 +404,9 @@
       const distance = Math.hypot(dx, dy);
 
       if (distance > player.radius + ball.radius + 18) return;
-
-      const shotPower = 480;
-
-      // FREE AIM:
-      // Kick away from the player's center, through the ball.
-      // The relative position determines the angle continuously.
-      // No fixed directions and no stored aim direction.
       if (distance < 0.001) return;
 
+      const shotPower = 480;
       const directionX = dx / distance;
       const directionY = dy / distance;
 
@@ -335,6 +426,12 @@
       player.vy = 0;
       player.facingX = 1;
       player.facingY = 0;
+
+      ai.x = centerX + 125;
+      ai.y = centerY;
+      ai.vx = 0;
+      ai.vy = 0;
+      ai.kickCooldown = 0.5;
 
       keys.clear();
       shootRequested = false;
@@ -400,11 +497,11 @@
       }
     }
 
-    function handlePlayerBallCollision() {
-      const dx = ball.x - player.x;
-      const dy = ball.y - player.y;
+    function handleEntityBallCollision(entity) {
+      const dx = ball.x - entity.x;
+      const dy = ball.y - entity.y;
       const distance = Math.hypot(dx, dy);
-      const minDistance = player.radius + ball.radius;
+      const minDistance = entity.radius + ball.radius;
 
       if (distance >= minDistance) return;
 
@@ -415,17 +512,15 @@
       ball.x += nx * overlap;
       ball.y += ny * overlap;
 
-      const impactSpeed = player.vx * nx + player.vy * ny;
+      const impactSpeed = entity.vx * nx + entity.vy * ny;
 
       if (impactSpeed > 0) {
-        const kickStrength = 0.72;
-        ball.vx += nx * impactSpeed * kickStrength;
-        ball.vy += ny * impactSpeed * kickStrength;
+        ball.vx += nx * impactSpeed * 0.72;
+        ball.vy += ny * impactSpeed * 0.72;
 
         const tangentX = -ny;
         const tangentY = nx;
-        const sideSpeed =
-          player.vx * tangentX + player.vy * tangentY;
+        const sideSpeed = entity.vx * tangentX + entity.vy * tangentY;
 
         ball.vx += tangentX * sideSpeed * 0.12;
         ball.vy += tangentY * sideSpeed * 0.12;
@@ -470,9 +565,7 @@
 
         for (let i = 0; i < count; i++) {
           ctx.fillStyle = i % 2 === 0 ? "#2e8749" : "#24763e";
-          ctx.fillRect(
-            x + i * stripeWidth, y, stripeWidth + 0.5, h
-          );
+          ctx.fillRect(x + i * stripeWidth, y, stripeWidth + 0.5, h);
         }
       } else {
         const maxRadius = Math.hypot(w / 2, h / 2) + 80;
@@ -630,8 +723,8 @@
       ctx.restore();
     }
 
-    function drawPlayer() {
-      const { x, y, radius, color } = player;
+    function drawPlayer(entity, isAI = false) {
+      const { x, y, radius, color } = entity;
 
       ctx.save();
 
@@ -650,7 +743,7 @@
       ctx.fillStyle = "#f5f7f2";
       ctx.fill();
 
-      // Blue body
+      // Team-colored body
       ctx.beginPath();
       ctx.arc(x, y, radius, 0, Math.PI * 2);
 
@@ -659,18 +752,24 @@
         1, x, y, radius
       );
 
-      gradient.addColorStop(0, "#62b0ff");
-      gradient.addColorStop(1, color);
+      if (isAI) {
+        gradient.addColorStop(0, "#ff8989");
+        gradient.addColorStop(1, color);
+      } else {
+        gradient.addColorStop(0, "#62b0ff");
+        gradient.addColorStop(1, color);
+      }
 
       ctx.fillStyle = gradient;
       ctx.fill();
-      ctx.strokeStyle = "#174d91";
+      ctx.strokeStyle = isAI ? "#921f2b" : "#174d91";
       ctx.lineWidth = 1.5;
       ctx.stroke();
+
       ctx.restore();
     }
 
-    // Original horizontal camera, unchanged.
+    // Original horizontal camera.
     function draw() {
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = "#1c292b";
@@ -714,7 +813,8 @@
       drawMarkings();
       drawGoal("left");
       drawGoal("right");
-      drawPlayer();
+      drawPlayer(player);
+      drawPlayer(ai, true);
       drawBall();
 
       ctx.restore();
@@ -761,7 +861,11 @@
       previousTime = timestamp;
 
       updatePlayer(dt);
-      handlePlayerBallCollision();
+      updateAI(dt);
+
+      // Both players can interact physically with the ball.
+      handleEntityBallCollision(player);
+      handleEntityBallCollision(ai);
 
       if (shootRequested) {
         shootBall();
