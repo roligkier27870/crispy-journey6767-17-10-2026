@@ -1,6 +1,7 @@
-// ==========================================
-// KICKOFF FOOTBALL — PLAYABLE FOUNDATION
-// ==========================================
+// ============================================
+// KICKOFF FOOTBALL — VERSION 0.3
+// Floating tactical minimap + playable match
+// ============================================
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -8,33 +9,24 @@ const ctx = canvas.getContext("2d");
 const minimap = document.getElementById("minimap");
 const minimapCtx = minimap.getContext("2d");
 
-const menuScreen = document.getElementById("menuScreen");
-const matchScreen = document.getElementById("matchScreen");
+const $ = id => document.getElementById(id);
 
-const playButton = document.getElementById("playButton");
-const menuButton = document.getElementById("menuButton");
-const resetButton = document.getElementById("resetButton");
-const pauseButton = document.getElementById("pauseButton");
-const resumeButton = document.getElementById("resumeButton");
-const cameraButton = document.getElementById("cameraButton");
-const grassButton = document.getElementById("grassButton");
+const menuScreen = $("menuScreen");
+const matchScreen = $("matchScreen");
+const goalBanner = $("goalBanner");
+const goalText = $("goalText");
+const pauseOverlay = $("pauseOverlay");
 
-const passButton = document.getElementById("passButton");
-const shootButton = document.getElementById("shootButton");
-const sprintButton = document.getElementById("sprintButton");
+const COLORS = {
+  grass: "#347b3e",
+  grassLight: "#3b8545",
+  lines: "rgba(255,255,255,0.85)",
+  blue: "#36a5ff",
+  blueDark: "#1474d1",
+  red: "#ff5358",
+  redDark: "#c92f3c"
+};
 
-const blueScoreElement = document.getElementById("blueScore");
-const redScoreElement = document.getElementById("redScore");
-const matchBlueScoreElement = document.getElementById("matchBlueScore");
-const matchRedScoreElement = document.getElementById("matchRedScore");
-
-const matchStatus = document.getElementById("matchStatus");
-const liveMatchStatus = document.getElementById("liveMatchStatus");
-const pauseOverlay = document.getElementById("pauseOverlay");
-const goalBanner = document.getElementById("goalBanner");
-const goalText = document.getElementById("goalText");
-
-// World
 const WORLD_WIDTH = 2400;
 const WORLD_HEIGHT = 1400;
 
@@ -47,31 +39,6 @@ const FIELD = {
 
 const CENTER_X = WORLD_WIDTH / 2;
 const CENTER_Y = WORLD_HEIGHT / 2;
-
-const COLORS = {
-  grass: "#347b3e",
-  grassLight: "#3b8545",
-  lines: "rgba(255,255,255,0.82)",
-  blue: "#36a5ff",
-  blueDark: "#1474d1",
-  red: "#ff5358",
-  redDark: "#c92f3c"
-};
-
-let blueScore = 0;
-let redScore = 0;
-
-let running = false;
-let paused = false;
-let cameraEnabled = true;
-let stripesEnabled = true;
-
-let lastFrameTime = 0;
-let goalTimer = 0;
-let kickoffTimer = 0;
-
-const keys = new Set();
-const touchDirections = new Set();
 
 const blue = {
   x: CENTER_X - 130,
@@ -111,9 +78,22 @@ const camera = {
   zoom: 1.18
 };
 
-// ==========================================
-// UTILITIES
-// ==========================================
+let blueScore = 0;
+let redScore = 0;
+let running = false;
+let paused = false;
+let cameraEnabled = true;
+let stripesEnabled = true;
+let lastFrameTime = 0;
+let goalTimer = 0;
+let kickoffTimer = 0;
+
+const keys = new Set();
+const touchDirections = new Set();
+
+// --------------------------------------------
+// GENERAL HELPERS
+// --------------------------------------------
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -130,59 +110,57 @@ function normalize(x, y) {
 }
 
 function setStatus(message) {
-  matchStatus.textContent = message;
-  liveMatchStatus.textContent = message;
+  $("matchStatus").textContent = message;
+  $("liveMatchStatus").textContent = message;
 }
 
 function updateScoreboard() {
-  blueScoreElement.textContent = blueScore;
-  redScoreElement.textContent = redScore;
-  matchBlueScoreElement.textContent = blueScore;
-  matchRedScoreElement.textContent = redScore;
+  $("blueScore").textContent = blueScore;
+  $("redScore").textContent = redScore;
+  $("matchBlueScore").textContent = blueScore;
+  $("matchRedScore").textContent = redScore;
 }
+
+// --------------------------------------------
+// RESET AND GOALS
+// --------------------------------------------
 
 function hideGoalBanner() {
   goalBanner.hidden = true;
 }
 
-function showGoalBanner(message) {
-  goalText.textContent = message;
-  goalBanner.hidden = false;
-}
-
-// ==========================================
-// RESET AND SCORING
-// ==========================================
-
 function resetPositions() {
   blue.x = CENTER_X - 130;
   blue.y = CENTER_Y;
-  blue.vx = blue.vy = 0;
+  blue.vx = 0;
+  blue.vy = 0;
 
   red.x = CENTER_X + 150;
   red.y = CENTER_Y;
-  red.vx = red.vy = 0;
+  red.vx = 0;
+  red.vy = 0;
 
   ball.x = CENTER_X;
   ball.y = CENTER_Y;
-  ball.vx = ball.vy = 0;
+  ball.vx = 0;
+  ball.vy = 0;
 
   camera.x = CENTER_X;
   camera.y = CENTER_Y;
 
-  kickoffTimer = 0.8;
+  kickoffTimer = 1;
 }
 
 function resetMatch() {
   blueScore = 0;
   redScore = 0;
-  paused = false;
   goalTimer = 0;
-
-  pauseOverlay.hidden = true;
-  pauseButton.textContent = "PAUSE";
+  paused = false;
 
   hideGoalBanner();
+  pauseOverlay.hidden = true;
+  $("pauseButton").textContent = "PAUSE";
+
   resetPositions();
   updateScoreboard();
   setStatus("READY FOR KICKOFF");
@@ -193,14 +171,15 @@ function scoreGoal(team) {
 
   if (team === "blue") {
     blueScore++;
-    showGoalBanner("BLUE FC SCORES!");
+    goalText.textContent = "BLUE FC SCORES!";
   } else {
     redScore++;
-    showGoalBanner("RED UNITED SCORES!");
+    goalText.textContent = "RED UNITED SCORES!";
   }
 
   updateScoreboard();
   setStatus("GOAL!");
+  goalBanner.hidden = false;
 
   goalTimer = 1.6;
   kickoffTimer = 2.2;
@@ -210,12 +189,14 @@ function scoreGoal(team) {
   ball.vx = ball.vy = 0;
 }
 
-// ==========================================
-// INPUT
-// ==========================================
+// --------------------------------------------
+// KEYBOARD AND TOUCH INPUT
+// --------------------------------------------
 
 function isDown(...names) {
-  return names.some(name => keys.has(name) || touchDirections.has(name));
+  return names.some(name =>
+    keys.has(name) || touchDirections.has(name)
+  );
 }
 
 function getMovement() {
@@ -231,23 +212,32 @@ function getMovement() {
 }
 
 function updateBlue(dt) {
-  const movement = getMovement();
+  const move = getMovement();
   const sprinting = isDown("shift", "sprint");
   const speed = blue.speed * (sprinting ? 1.45 : 1);
 
-  blue.vx = movement.x * speed;
-  blue.vy = movement.y * speed;
+  blue.vx = move.x * speed;
+  blue.vy = move.y * speed;
 
   blue.x += blue.vx * dt;
   blue.y += blue.vy * dt;
 
-  blue.x = clamp(blue.x, FIELD.x + blue.radius, FIELD.x + FIELD.width - blue.radius);
-  blue.y = clamp(blue.y, FIELD.y + blue.radius, FIELD.y + FIELD.height - blue.radius);
+  blue.x = clamp(
+    blue.x,
+    FIELD.x + blue.radius,
+    FIELD.x + FIELD.width - blue.radius
+  );
+
+  blue.y = clamp(
+    blue.y,
+    FIELD.y + blue.radius,
+    FIELD.y + FIELD.height - blue.radius
+  );
 }
 
-// ==========================================
-// RED AI
-// ==========================================
+// --------------------------------------------
+// RED TEAM AI
+// --------------------------------------------
 
 function updateRed(dt) {
   const dist = distance(red, ball);
@@ -263,13 +253,22 @@ function updateRed(dt) {
   red.x += red.vx * dt;
   red.y += red.vy * dt;
 
-  red.x = clamp(red.x, FIELD.x + red.radius, FIELD.x + FIELD.width - red.radius);
-  red.y = clamp(red.y, FIELD.y + red.radius, FIELD.y + FIELD.height - red.radius);
+  red.x = clamp(
+    red.x,
+    FIELD.x + red.radius,
+    FIELD.x + FIELD.width - red.radius
+  );
+
+  red.y = clamp(
+    red.y,
+    FIELD.y + red.radius,
+    FIELD.y + FIELD.height - red.radius
+  );
 }
 
-// ==========================================
-// PLAYER COLLISION
-// ==========================================
+// --------------------------------------------
+// PLAYER-PLAYER COLLISION
+// --------------------------------------------
 
 function resolvePlayerCollision() {
   const dx = red.x - blue.x;
@@ -303,9 +302,9 @@ function resolvePlayerCollision() {
   }
 }
 
-// ==========================================
-// BALL PHYSICS
-// ==========================================
+// --------------------------------------------
+// BALL COLLISION AND MOVEMENT
+// --------------------------------------------
 
 function pushBallFromPlayer(player, dt) {
   const dx = ball.x - player.x;
@@ -391,9 +390,9 @@ function updateBall(dt) {
   pushBallFromPlayer(red, dt);
 }
 
-// ==========================================
+// --------------------------------------------
 // SHOOTING AND PASSING
-// ==========================================
+// --------------------------------------------
 
 function canKickBall() {
   return distance(blue, ball) <= blue.radius + ball.radius + 5;
@@ -407,7 +406,10 @@ function kickBall(power) {
     return;
   }
 
-  let direction = normalize(ball.x - blue.x, ball.y - blue.y);
+  let direction = normalize(
+    ball.x - blue.x,
+    ball.y - blue.y
+  );
 
   if (direction.x === 0 && direction.y === 0) {
     direction = normalize(blue.vx, blue.vy);
@@ -434,9 +436,9 @@ function pass() {
   kickBall(410);
 }
 
-// ==========================================
+// --------------------------------------------
 // CAMERA
-// ==========================================
+// --------------------------------------------
 
 function updateCamera(dt) {
   if (!cameraEnabled) {
@@ -455,13 +457,22 @@ function updateCamera(dt) {
   const halfWidth = canvas.width / (2 * camera.zoom);
   const halfHeight = canvas.height / (2 * camera.zoom);
 
-  camera.x = clamp(camera.x, FIELD.x + halfWidth, FIELD.x + FIELD.width - halfWidth);
-  camera.y = clamp(camera.y, FIELD.y + halfHeight, FIELD.y + FIELD.height - halfHeight);
+  camera.x = clamp(
+    camera.x,
+    FIELD.x + halfWidth,
+    FIELD.x + FIELD.width - halfWidth
+  );
+
+  camera.y = clamp(
+    camera.y,
+    FIELD.y + halfHeight,
+    FIELD.y + FIELD.height - halfHeight
+  );
 }
 
-// ==========================================
-// DRAW THE PITCH
-// ==========================================
+// --------------------------------------------
+// DRAW PITCH
+// --------------------------------------------
 
 function drawPitch() {
   ctx.fillStyle = "#18251a";
@@ -477,7 +488,12 @@ function drawPitch() {
     for (let i = 0; i < stripeCount; i++) {
       if (i % 2 === 0) {
         ctx.fillStyle = COLORS.grassLight;
-        ctx.fillRect(FIELD.x + i * stripeWidth, FIELD.y, stripeWidth, FIELD.height);
+        ctx.fillRect(
+          FIELD.x + i * stripeWidth,
+          FIELD.y,
+          stripeWidth,
+          FIELD.height
+        );
       }
     }
   }
@@ -485,7 +501,10 @@ function drawPitch() {
   ctx.strokeStyle = COLORS.lines;
   ctx.lineWidth = 5;
 
-  ctx.strokeRect(FIELD.x, FIELD.y, FIELD.width, FIELD.height);
+  ctx.strokeRect(
+    FIELD.x, FIELD.y,
+    FIELD.width, FIELD.height
+  );
 
   ctx.beginPath();
   ctx.moveTo(CENTER_X, FIELD.y);
@@ -503,54 +522,111 @@ function drawPitch() {
 
   const penaltyWidth = 270;
   const penaltyHeight = 570;
-
-  ctx.strokeRect(FIELD.x, CENTER_Y - penaltyHeight / 2, penaltyWidth, penaltyHeight);
-  ctx.strokeRect(FIELD.x + FIELD.width - penaltyWidth, CENTER_Y - penaltyHeight / 2, penaltyWidth, penaltyHeight);
-
   const goalAreaWidth = 110;
   const goalAreaHeight = 300;
 
-  ctx.strokeRect(FIELD.x, CENTER_Y - goalAreaHeight / 2, goalAreaWidth, goalAreaHeight);
-  ctx.strokeRect(FIELD.x + FIELD.width - goalAreaWidth, CENTER_Y - goalAreaHeight / 2, goalAreaWidth, goalAreaHeight);
+  ctx.strokeRect(
+    FIELD.x,
+    CENTER_Y - penaltyHeight / 2,
+    penaltyWidth,
+    penaltyHeight
+  );
+
+  ctx.strokeRect(
+    FIELD.x + FIELD.width - penaltyWidth,
+    CENTER_Y - penaltyHeight / 2,
+    penaltyWidth,
+    penaltyHeight
+  );
+
+  ctx.strokeRect(
+    FIELD.x,
+    CENTER_Y - goalAreaHeight / 2,
+    goalAreaWidth,
+    goalAreaHeight
+  );
+
+  ctx.strokeRect(
+    FIELD.x + FIELD.width - goalAreaWidth,
+    CENTER_Y - goalAreaHeight / 2,
+    goalAreaWidth,
+    goalAreaHeight
+  );
 
   const goalWidth = 55;
   const goalHeight = 220;
 
   ctx.fillStyle = "#dce5dc";
-  ctx.fillRect(FIELD.x - goalWidth, CENTER_Y - goalHeight / 2, goalWidth, goalHeight);
-  ctx.fillRect(FIELD.x + FIELD.width, CENTER_Y - goalHeight / 2, goalWidth, goalHeight);
+  ctx.fillRect(
+    FIELD.x - goalWidth,
+    CENTER_Y - goalHeight / 2,
+    goalWidth,
+    goalHeight
+  );
+  ctx.fillRect(
+    FIELD.x + FIELD.width,
+    CENTER_Y - goalHeight / 2,
+    goalWidth,
+    goalHeight
+  );
 
   ctx.strokeStyle = "#fff";
   ctx.lineWidth = 4;
-  ctx.strokeRect(FIELD.x - goalWidth, CENTER_Y - goalHeight / 2, goalWidth, goalHeight);
-  ctx.strokeRect(FIELD.x + FIELD.width, CENTER_Y - goalHeight / 2, goalWidth, goalHeight);
+  ctx.strokeRect(
+    FIELD.x - goalWidth,
+    CENTER_Y - goalHeight / 2,
+    goalWidth,
+    goalHeight
+  );
+  ctx.strokeRect(
+    FIELD.x + FIELD.width,
+    CENTER_Y - goalHeight / 2,
+    goalWidth,
+    goalHeight
+  );
 }
 
-// ==========================================
+// --------------------------------------------
 // DRAW PLAYERS AND BALL
-// ==========================================
+// --------------------------------------------
 
 function drawPlayer(player) {
   ctx.save();
 
   ctx.fillStyle = "#0004";
   ctx.beginPath();
-  ctx.ellipse(player.x + 3, player.y + 7, player.radius * 1.05, player.radius * 0.85, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    player.x + 3, player.y + 7,
+    player.radius * 1.05, player.radius * 0.85,
+    0, 0, Math.PI * 2
+  );
   ctx.fill();
 
-  ctx.fillStyle = player.team === "blue" ? COLORS.blueDark : COLORS.redDark;
+  ctx.fillStyle = player.team === "blue"
+    ? COLORS.blueDark
+    : COLORS.redDark;
+
   ctx.beginPath();
-  ctx.arc(player.x, player.y, player.radius + 4, 0, Math.PI * 2);
+  ctx.arc(
+    player.x, player.y,
+    player.radius + 4, 0, Math.PI * 2
+  );
   ctx.fill();
 
   ctx.fillStyle = player.color;
   ctx.beginPath();
-  ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+  ctx.arc(
+    player.x, player.y,
+    player.radius, 0, Math.PI * 2
+  );
   ctx.fill();
 
   ctx.fillStyle = "#ffffff35";
   ctx.beginPath();
-  ctx.arc(player.x - 6, player.y - 7, player.radius * 0.42, 0, Math.PI * 2);
+  ctx.arc(
+    player.x - 6, player.y - 7,
+    player.radius * 0.42, 0, Math.PI * 2
+  );
   ctx.fill();
 
   ctx.fillStyle = "#fff";
@@ -567,7 +643,11 @@ function drawBall() {
 
   ctx.fillStyle = "#0004";
   ctx.beginPath();
-  ctx.ellipse(ball.x + 3, ball.y + 6, ball.radius * 1.1, ball.radius * 0.8, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    ball.x + 3, ball.y + 6,
+    ball.radius * 1.1, ball.radius * 0.8,
+    0, 0, Math.PI * 2
+  );
   ctx.fill();
 
   ctx.fillStyle = "#fff";
@@ -583,34 +663,52 @@ function drawBall() {
   ctx.restore();
 }
 
-// ==========================================
-// MINIMAP
-// ==========================================
+// --------------------------------------------
+// TACTICAL MINIMAP
+// --------------------------------------------
 
-function drawMinimapDot(object, color, radius) {
-  const x = object.x / WORLD_WIDTH * minimap.width;
-  const y = object.y / WORLD_HEIGHT * minimap.height;
+function mapX(x) {
+  return x / WORLD_WIDTH * minimap.width;
+}
 
+function mapY(y) {
+  return y / WORLD_HEIGHT * minimap.height;
+}
+
+function drawMapDot(object, color, radius) {
   minimapCtx.fillStyle = color;
   minimapCtx.beginPath();
-  minimapCtx.arc(x, y, radius, 0, Math.PI * 2);
+  minimapCtx.arc(
+    mapX(object.x),
+    mapY(object.y),
+    radius,
+    0,
+    Math.PI * 2
+  );
   minimapCtx.fill();
 }
 
 function drawMinimap() {
   const w = minimap.width;
   const h = minimap.height;
-
   const sx = w / WORLD_WIDTH;
   const sy = h / WORLD_HEIGHT;
 
   minimapCtx.clearRect(0, 0, w, h);
+
+  // Background and full pitch.
   minimapCtx.fillStyle = "#18251a";
   minimapCtx.fillRect(0, 0, w, h);
 
   minimapCtx.fillStyle = COLORS.grass;
-  minimapCtx.fillRect(FIELD.x * sx, FIELD.y * sy, FIELD.width * sx, FIELD.height * sy);
+  minimapCtx.fillRect(
+    FIELD.x * sx,
+    FIELD.y * sy,
+    FIELD.width * sx,
+    FIELD.height * sy
+  );
 
+  // Grass stripes.
   if (stripesEnabled) {
     for (let i = 0; i < 12; i++) {
       if (i % 2 === 0) {
@@ -625,45 +723,112 @@ function drawMinimap() {
     }
   }
 
-  minimapCtx.strokeStyle = "#ffffffc9";
+  // Pitch outline and centre line.
+  minimapCtx.strokeStyle = "#ffffffd9";
   minimapCtx.lineWidth = 1.5;
 
-  minimapCtx.strokeRect(FIELD.x * sx, FIELD.y * sy, FIELD.width * sx, FIELD.height * sy);
+  minimapCtx.strokeRect(
+    FIELD.x * sx,
+    FIELD.y * sy,
+    FIELD.width * sx,
+    FIELD.height * sy
+  );
 
   minimapCtx.beginPath();
   minimapCtx.moveTo(CENTER_X * sx, FIELD.y * sy);
-  minimapCtx.lineTo(CENTER_X * sx, (FIELD.y + FIELD.height) * sy);
+  minimapCtx.lineTo(
+    CENTER_X * sx,
+    (FIELD.y + FIELD.height) * sy
+  );
   minimapCtx.stroke();
 
+  // Centre circle.
   minimapCtx.beginPath();
-  minimapCtx.arc(CENTER_X * sx, CENTER_Y * sy, 150 * sx, 0, Math.PI * 2);
+  minimapCtx.arc(
+    CENTER_X * sx,
+    CENTER_Y * sy,
+    150 * sx,
+    0,
+    Math.PI * 2
+  );
   minimapCtx.stroke();
 
-  drawMinimapDot(blue, COLORS.blue, 5);
-  drawMinimapDot(red, COLORS.red, 5);
-  drawMinimapDot(ball, "#ffffff", 3.5);
+  // Penalty boxes.
+  const penaltyWidth = 270;
+  const penaltyHeight = 570;
 
+  minimapCtx.strokeRect(
+    FIELD.x * sx,
+    (CENTER_Y - penaltyHeight / 2) * sy,
+    penaltyWidth * sx,
+    penaltyHeight * sy
+  );
+
+  minimapCtx.strokeRect(
+    (FIELD.x + FIELD.width - penaltyWidth) * sx,
+    (CENTER_Y - penaltyHeight / 2) * sy,
+    penaltyWidth * sx,
+    penaltyHeight * sy
+  );
+
+  // Camera viewing rectangle, clamped to minimap bounds.
   const viewWidth = canvas.width / camera.zoom;
   const viewHeight = canvas.height / camera.zoom;
 
-  minimapCtx.strokeStyle = "#fff";
-  minimapCtx.lineWidth = 1.5;
-  minimapCtx.strokeRect(
-    (camera.x - viewWidth / 2) * sx,
-    (camera.y - viewHeight / 2) * sy,
-    viewWidth * sx,
-    viewHeight * sy
+  const viewLeft = clamp(
+    camera.x - viewWidth / 2, 0, WORLD_WIDTH
   );
+  const viewTop = clamp(
+    camera.y - viewHeight / 2, 0, WORLD_HEIGHT
+  );
+  const viewRight = clamp(
+    camera.x + viewWidth / 2, 0, WORLD_WIDTH
+  );
+  const viewBottom = clamp(
+    camera.y + viewHeight / 2, 0, WORLD_HEIGHT
+  );
+
+  minimapCtx.fillStyle = "#ffffff12";
+  minimapCtx.fillRect(
+    viewLeft * sx,
+    viewTop * sy,
+    (viewRight - viewLeft) * sx,
+    (viewBottom - viewTop) * sy
+  );
+
+  minimapCtx.strokeStyle = "#ffffff";
+  minimapCtx.lineWidth = 2;
+  minimapCtx.strokeRect(
+    viewLeft * sx,
+    viewTop * sy,
+    (viewRight - viewLeft) * sx,
+    (viewBottom - viewTop) * sy
+  );
+
+  // Players and ball are drawn last so they remain visible.
+  drawMapDot(blue, COLORS.blue, 6);
+  drawMapDot(red, COLORS.red, 6);
+
+  // White ball with dark outline.
+  minimapCtx.fillStyle = "#fff";
+  minimapCtx.beginPath();
+  minimapCtx.arc(mapX(ball.x), mapY(ball.y), 4, 0, Math.PI * 2);
+  minimapCtx.fill();
+
+  minimapCtx.strokeStyle = "#26312a";
+  minimapCtx.lineWidth = 1;
+  minimapCtx.stroke();
 }
 
-// ==========================================
-// RENDER
-// ==========================================
+// --------------------------------------------
+// MAIN RENDER
+// --------------------------------------------
 
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   ctx.save();
+
   ctx.translate(canvas.width / 2, canvas.height / 2);
   ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
@@ -675,12 +840,13 @@ function render() {
 
   ctx.restore();
 
+  // Keep the floating tactical map in sync with the game.
   drawMinimap();
 }
 
-// ==========================================
-// GAME LOOP
-// ==========================================
+// --------------------------------------------
+// GAME UPDATE LOOP
+// --------------------------------------------
 
 function update(dt) {
   if (!running || paused) return;
@@ -710,7 +876,10 @@ function update(dt) {
 }
 
 function gameLoop(timestamp) {
-  const dt = lastFrameTime === 0 ? 0 : Math.min((timestamp - lastFrameTime) / 1000, 0.033);
+  const dt = lastFrameTime === 0
+    ? 0
+    : Math.min((timestamp - lastFrameTime) / 1000, 0.033);
+
   lastFrameTime = timestamp;
 
   update(dt);
@@ -719,22 +888,26 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 }
 
-// ==========================================
-// SCREEN CONTROLS
-// ==========================================
+// --------------------------------------------
+// MENU, PAUSE AND DISPLAY BUTTONS
+// --------------------------------------------
 
 function startMatch() {
   resetMatch();
+
   menuScreen.hidden = true;
   matchScreen.hidden = false;
+
   running = true;
   paused = false;
+
   setStatus("KICKOFF");
 }
 
 function returnToMenu() {
   running = false;
   paused = false;
+
   keys.clear();
   touchDirections.clear();
 
@@ -748,7 +921,7 @@ function togglePause() {
 
   paused = !paused;
   pauseOverlay.hidden = !paused;
-  pauseButton.textContent = paused ? "RESUME" : "PAUSE";
+  $("pauseButton").textContent = paused ? "RESUME" : "PAUSE";
 
   keys.clear();
   touchDirections.clear();
@@ -756,47 +929,46 @@ function togglePause() {
   setStatus(paused ? "PAUSED" : "MATCH ON");
 }
 
-playButton.addEventListener("click", startMatch);
-menuButton.addEventListener("click", returnToMenu);
+$("playButton").addEventListener("click", startMatch);
+$("menuButton").addEventListener("click", returnToMenu);
 
-resetButton.addEventListener("click", () => {
+$("resetButton").addEventListener("click", () => {
   resetMatch();
 });
 
-pauseButton.addEventListener("click", togglePause);
-resumeButton.addEventListener("click", togglePause);
+$("pauseButton").addEventListener("click", togglePause);
+$("resumeButton").addEventListener("click", togglePause);
 
-cameraButton.addEventListener("click", () => {
+$("cameraButton").addEventListener("click", () => {
   cameraEnabled = !cameraEnabled;
-  cameraButton.setAttribute("aria-pressed", String(cameraEnabled));
+
+  $("cameraButton").setAttribute(
+    "aria-pressed",
+    String(cameraEnabled)
+  );
 });
 
-grassButton.addEventListener("click", () => {
+$("grassButton").addEventListener("click", () => {
   stripesEnabled = !stripesEnabled;
-  grassButton.setAttribute("aria-pressed", String(stripesEnabled));
+
+  $("grassButton").setAttribute(
+    "aria-pressed",
+    String(stripesEnabled)
+  );
 });
 
-passButton.addEventListener("click", pass);
-shootButton.addEventListener("click", shoot);
+$("shootButton").addEventListener("click", shoot);
+$("passButton").addEventListener("click", pass);
 
-sprintButton.addEventListener("pointerdown", event => {
-  event.preventDefault();
-  touchDirections.add("sprint");
-});
-
-function releaseSprint() {
-  touchDirections.delete("sprint");
-}
-
-sprintButton.addEventListener("pointerup", releaseSprint);
-sprintButton.addEventListener("pointercancel", releaseSprint);
-sprintButton.addEventListener("lostpointercapture", releaseSprint);
-
-// Keyboard.
+// Keyboard controls.
 window.addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
 
-  if (["w", "a", "s", "d", "arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(key)) {
+  if ([
+    "w", "a", "s", "d",
+    "arrowup", "arrowdown",
+    "arrowleft", "arrowright", " "
+  ].includes(key)) {
     event.preventDefault();
   }
 
@@ -818,12 +990,13 @@ window.addEventListener("blur", () => {
   touchDirections.clear();
 });
 
-// Touch directional controls.
+// Touch movement buttons.
 document.querySelectorAll("[data-move]").forEach(button => {
   const direction = button.dataset.move;
 
   button.addEventListener("pointerdown", event => {
     event.preventDefault();
+
     button.setPointerCapture(event.pointerId);
     touchDirections.add(direction);
   });
@@ -837,7 +1010,25 @@ document.querySelectorAll("[data-move]").forEach(button => {
   button.addEventListener("lostpointercapture", releaseDirection);
 });
 
-// Start with the menu visible.
+// Touch sprint.
+const sprintButton = $("sprintButton");
+
+sprintButton.addEventListener("pointerdown", event => {
+  event.preventDefault();
+
+  sprintButton.setPointerCapture(event.pointerId);
+  touchDirections.add("sprint");
+});
+
+function releaseSprint() {
+  touchDirections.delete("sprint");
+}
+
+sprintButton.addEventListener("pointerup", releaseSprint);
+sprintButton.addEventListener("pointercancel", releaseSprint);
+sprintButton.addEventListener("lostpointercapture", releaseSprint);
+
+// Initial state.
 resetMatch();
 menuScreen.hidden = false;
 matchScreen.hidden = true;
