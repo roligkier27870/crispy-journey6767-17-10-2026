@@ -1,145 +1,61 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#101510">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#07111e">
   <title>Kickoff Football</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app-shell">
+  <main class="app">
     <header class="topbar">
       <a class="brand" href="#" aria-label="Kickoff Football home">
-        <span class="brand-mark">K</span>
-        <span class="brand-copy">
-          <strong>KICKOFF</strong>
-          <span>FOOTBALL</span>
-        </span>
+        <span class="brand-icon">⚽</span>
+        <span>KICKOFF <b>FOOTBALL</b></span>
       </a>
-      <div class="topbar-right">
-        <span class="status-dot"></span>
-        <span class="status-label">ARCADE FOOTBALL</span>
-      </div>
+      <span class="online-label"><span class="live-dot"></span> MATCH ENGINE</span>
     </header>
 
-    <main class="screen menu-screen" id="menuScreen">
-      <section class="hero">
-        <div class="hero-copy">
-          <div class="eyebrow"><span class="eyebrow-line"></span> YOUR PITCH. YOUR RULES.</div>
-          <h1>Own the<br><span>moment.</span></h1>
-          <p class="hero-description">
-            Read the game. Find the space. Make it count.
-            Every touch can change everything.
-          </p>
-          <div class="hero-actions">
-            <button class="primary-button" id="playButton" type="button">
-              PLAY MATCH <span class="button-arrow">→</span>
-            </button>
-            <button class="secondary-button" id="resetButton" type="button">
-              RESET MATCH
-            </button>
-          </div>
-          <div class="hero-meta">
-            <span class="meta-dot"></span> QUICK MATCH
-            <span class="meta-divider">/</span> LOCAL ARCADE
-          </div>
-        </div>
-        <div class="hero-decoration" aria-hidden="true">
-          <div class="hero-ring hero-ring-one"></div>
-          <div class="hero-ring hero-ring-two"></div>
-          <div class="hero-ball">⚽</div>
-          <span class="hero-number">90'</span>
-        </div>
-      </section>
+    <section id="menuScreen" class="menu-screen">
+      <div class="menu-content">
+        <div class="eyebrow">YOUR PITCH. YOUR RULES.</div>
+        <h1>OWN THE<br><span>GAME.</span></h1>
+        <p>Fast football. Smart movement. Perfect timing.</p>
+        <button id="playButton" class="primary-button">PLAY MATCH <span>→</span></button>
+        <div class="menu-footnote">KICKOFF FOOTBALL · ARCADE MATCH</div>
+      </div>
+      <div class="menu-ball" aria-hidden="true">⚽</div>
+    </section>
 
-      <section class="scoreboard" aria-label="Match scoreboard">
-        <div class="team-block team-blue">
-          <div class="team-badge">B</div>
-          <div class="team-details">
-            <span class="team-label">HOME</span>
-            <strong>BLUE FC</strong>
-          </div>
+    <section id="matchScreen" class="match-screen" hidden>
+      <div class="scoreboard">
+        <div class="team team-blue">
+          <span class="team-mark">B</span>
+          <div><small>HOME</small><strong>BLUE FC</strong></div>
         </div>
         <div class="score-center">
-          <div class="score">
-            <span id="blueScore">0</span>
-            <span class="score-separator">:</span>
-            <span id="redScore">0</span>
-          </div>
-          <div class="match-status" id="matchStatus">READY FOR KICKOFF</div>
+          <div class="score"><span id="blueScore">0</span><i>:</i><span id="redScore">0</span></div>
+          <div id="matchStatus" class="match-status">READY FOR KICKOFF</div>
         </div>
-        <div class="team-block team-red">
-          <div class="team-details team-details-right">
-            <span class="team-label">AWAY</span>
-            <strong>RED UNITED</strong>
-          </div>
-          <div class="team-badge">R</div>
+        <div class="team team-red">
+          <div><small>AWAY</small><strong>RED UNITED</strong></div>
+          <span class="team-mark">R</span>
         </div>
-      </section>
-    </main>
+      </div>
 
-    <main class="screen match-screen" id="matchScreen" hidden>
-      <section class="match-heading">
-        <div>
-          <div class="eyebrow"><span class="eyebrow-line"></span> LIVE MATCH</div>
-          <h2>Make your <span>move.</span></h2>
-          <p class="match-subtitle">Create space. Win possession. Find the net.</p>
-        </div>
-        <button class="secondary-button" id="menuButton" type="button">← MAIN MENU</button>
-      </section>
-
-      <section class="scoreboard match-scoreboard" aria-label="Live score">
-        <div class="team-block team-blue">
-          <div class="team-badge">B</div>
-          <div class="team-details">
-            <span class="team-label">HOME</span>
-            <strong>BLUE FC</strong>
-          </div>
-        </div>
-        <div class="score-center">
-          <div class="score">
-            <span id="matchBlueScore">0</span>
-            <span class="score-separator">:</span>
-            <span id="matchRedScore">0</span>
-          </div>
-          <div class="match-status" id="liveMatchStatus">KICKOFF</div>
-        </div>
-        <div class="team-block team-red">
-          <div class="team-details team-details-right">
-            <span class="team-label">AWAY</span>
-            <strong>RED UNITED</strong>
-          </div>
-          <div class="team-badge">R</div>
-        </div>
-      </section>
-
-      <section class="game-panel">
-        <div class="game-toolbar">
-          <div class="toolbar-title">
-            <span class="live-indicator"></span>
-            <strong>THE PITCH</strong>
-            <span class="toolbar-divider">/</span>
-            <span class="toolbar-caption">MATCH VIEW</span>
-          </div>
-          <div class="toolbar-controls">
-            <button class="small-button" id="cameraButton" type="button" aria-pressed="true">◎ CAMERA</button>
-            <button class="small-button" id="grassButton" type="button" aria-pressed="true">▥ STRIPES</button>
-          </div>
-        </div>
-
+      <div class="game-shell">
         <div class="canvas-wrap">
-          <canvas id="game" width="1200" height="760" aria-label="Football match" role="img">
-            Your browser does not support HTML canvas.
-          </canvas>
+          <canvas id="game" width="1200" height="760" aria-label="Football match"></canvas>
 
-          <!-- TACTICAL MINIMAP: FLOATING UPPER-RIGHT -->
           <aside class="tactical-map" aria-label="Tactical minimap">
-            <div class="tactical-map-header">
-              <span class="tactical-map-title">TACTICAL VIEW</span>
-              <span class="tactical-live"><span class="live-indicator"></span> LIVE</span>
+            <div class="map-heading">
+              <span><span class="live-dot"></span> TACTICAL VIEW</span>
+              <span class="map-live">LIVE</span>
             </div>
-            <canvas id="minimap" width="360" height="210" aria-label="Full pitch with player and ball positions" role="img"></canvas>
+            <canvas id="minimap" width="360" height="210"
+              aria-label="Full pitch, player positions, ball and camera view"></canvas>
             <div class="map-legend">
               <span><i class="legend-dot blue-dot"></i> BLUE</span>
               <span><i class="legend-dot red-dot"></i> RED</span>
@@ -147,93 +63,47 @@
             </div>
           </aside>
 
-          <div class="goal-banner" id="goalBanner" hidden role="status" aria-live="polite">
-            <span class="goal-banner-kicker">WHAT A FINISH</span>
-            <strong id="goalText">GOAL!</strong>
-          </div>
-
-          <div class="pause-overlay" id="pauseOverlay" hidden>
+          <div id="pauseOverlay" class="pause-overlay" hidden>
             <div class="pause-card">
-              <span class="eyebrow">TAKE A BREATHER</span>
-              <h2>Match paused</h2>
-              <button class="primary-button" id="resumeButton" type="button">RESUME MATCH →</button>
+              <span class="pause-icon">Ⅱ</span>
+              <h2>MATCH PAUSED</h2>
+              <p>Take a breath. Plan your next move.</p>
+              <button id="resumeButton" class="primary-button">RESUME MATCH →</button>
             </div>
           </div>
         </div>
 
-        <div class="game-footer">
-          <div class="control-hint">
-            <span class="keycap">W</span><span class="keycap">A</span>
-            <span class="keycap">S</span><span class="keycap">D</span>
-            <span class="control-description">MOVE</span>
+        <div class="match-toolbar">
+          <div class="control-hints">
+            <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move</span>
+            <span><kbd>SPACE</kbd> Shoot</span>
+            <span><kbd>E</kbd> Pass</span>
+            <span><kbd>SHIFT</kbd> Sprint</span>
           </div>
-          <div class="control-hint">
-            <span class="keycap keycap-wide">SPACE</span>
-            <span class="control-description">SHOOT</span>
-          </div>
-          <div class="control-hint">
-            <span class="keycap">E</span>
-            <span class="control-description">PASS</span>
-          </div>
-          <div class="control-hint">
-            <span class="keycap">SHIFT</span>
-            <span class="control-description">SPRINT</span>
-          </div>
-          <button class="small-button" id="pauseButton" type="button">PAUSE</button>
-        </div>
-      </section>
-
-      <section class="mobile-controls" aria-label="Touch controls">
-        <div class="mobile-movement">
-          <span class="mobile-control-label">MOVE</span>
-          <div class="dpad">
-            <button type="button" data-move="up" aria-label="Move up">↑</button>
-            <button type="button" data-move="left" aria-label="Move left">←</button>
-            <button type="button" data-move="down" aria-label="Move down">↓</button>
-            <button type="button" data-move="right" aria-label="Move right">→</button>
+          <div class="toolbar-buttons">
+            <button id="cameraButton" class="secondary-button">CAMERA: FOLLOW</button>
+            <button id="grassButton" class="secondary-button">PITCH: STRIPES</button>
+            <button id="pauseButton" class="secondary-button">Ⅱ PAUSE</button>
           </div>
         </div>
-        <div class="mobile-actions">
-          <button class="action-button" id="passButton" type="button">PASS</button>
-          <button class="action-button shoot-button" id="shootButton" type="button">SHOOT</button>
-          <button class="action-button" id="sprintButton" type="button">SPRINT</button>
+      </div>
+
+      <div class="mobile-controls">
+        <div class="dpad" aria-label="Movement controls">
+          <button data-move="up" class="dpad-up" aria-label="Move up">▲</button>
+          <button data-move="left" class="dpad-left" aria-label="Move left">◀</button>
+          <button data-move="down" class="dpad-down" aria-label="Move down">▼</button>
+          <button data-move="right" class="dpad-right" aria-label="Move right">▶</button>
         </div>
-      </section>
-
-      <section class="bottom-grid">
-        <article class="info-card">
-          <div class="card-icon">⌘</div>
-          <div class="info-card-content">
-            <span class="card-kicker">CONTROLS</span>
-            <h3>Own the ball.</h3>
-            <p>Move with WASD, get close to the ball, and press Space to shoot.</p>
-          </div>
-        </article>
-        <article class="info-card">
-          <div class="card-icon">◎</div>
-          <div class="info-card-content">
-            <span class="card-kicker">TACTICS</span>
-            <h3>Read the whole pitch.</h3>
-            <p>The tactical map shows both players, the ball, and your current camera view.</p>
-          </div>
-        </article>
-        <article class="info-card">
-          <div class="card-icon">⚡</div>
-          <div class="info-card-content">
-            <span class="card-kicker">GAMEPLAY</span>
-            <h3>Make it count.</h3>
-            <p>Find openings, avoid defenders, and put your shots on target.</p>
-          </div>
-        </article>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <div class="footer-brand"><span class="footer-mark">K</span><span>KICKOFF FOOTBALL</span></div>
-      <span class="footer-caption">BUILT FOR THE LOVE OF THE GAME.</span>
-      <span class="footer-version">ARCADE EDITION · 0.3</span>
-    </footer>
-  </div>
+        <div class="action-controls">
+          <button id="mobilePass" class="action-button pass-button">PASS <small>E</small></button>
+          <button id="mobileShoot" class="action-button shoot-button">SHOOT <small>SPACE</small></button>
+          <button id="mobileSprint" class="action-button sprint-button">SPRINT <small>SHIFT</small></button>
+        </div>
+      </div>
+      <p class="footer-note">Stay close to the ball to shoot or pass. The tactical view tracks the whole pitch.</p>
+    </section>
+  </main>
 
   <script type="module" src="js/main.js"></script>
 </body>
