@@ -32,37 +32,28 @@ let stripedPitch = true;
 let lastFrame = 0;
 let kickoffTimer = 0;
 let statusTimer = 0;
+let aiThinkTimer = 0;
 
 const camera = { x: WORLD.width / 2, y: WORLD.height / 2 };
 
-const blue = {
-  x: WORLD.width * 0.38,
-  y: WORLD.height / 2,
-  vx: 0, vy: 0,
-  radius: 25,
-  speed: 340,
-  color: "#40a5ff",
-  number: 10,
-  team: "BLUE"
-};
+// Formation positions are fractions of the pitch.
+// Blue attacks to the right; Red attacks to the left.
+const FORMATION_433 = [
+  { number: 1, role: "GK", x: 0.045, y: 0.50 },
+  { number: 2, role: "DEF", x: 0.17, y: 0.18 },
+  { number: 4, role: "DEF", x: 0.19, y: 0.39 },
+  { number: 5, role: "DEF", x: 0.19, y: 0.61 },
+  { number: 3, role: "DEF", x: 0.17, y: 0.82 },
+  { number: 6, role: "MID", x: 0.34, y: 0.28 },
+  { number: 8, role: "MID", x: 0.37, y: 0.50 },
+  { number: 10, role: "MID", x: 0.34, y: 0.72 },
+  { number: 7, role: "FWD", x: 0.49, y: 0.22 },
+  { number: 9, role: "FWD", x: 0.51, y: 0.50 },
+  { number: 11, role: "FWD", x: 0.49, y: 0.78 }
+];
 
-const red = {
-  x: WORLD.width * 0.62,
-  y: WORLD.height / 2,
-  vx: 0, vy: 0,
-  radius: 25,
-  speed: 245,
-  color: "#ff5d68",
-  number: 9,
-  team: "RED"
-};
-
-const ball = {
-  x: WORLD.width / 2,
-  y: WORLD.height / 2,
-  vx: 0, vy: 0,
-  radius: 13
-};
+const blueTeam = [];
+const redTeam = [];
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -78,6 +69,63 @@ function normalize(x, y) {
   return { x: x / magnitude, y: y / magnitude };
 }
 
+function makePlayer(team, data) {
+  const isBlue = team === "BLUE";
+  const homeX = FIELD.x + data.x * FIELD.width;
+  const homeY = FIELD.y + data.y * FIELD.height;
+
+  return {
+    x: homeX,
+    y: homeY,
+    homeX,
+    homeY,
+    vx: 0,
+    vy: 0,
+    radius: data.role === "GK" ? 21 : data.number === 10 && isBlue ? 23 : 18,
+    speed: data.role === "GK" ? 245 : data.role === "FWD" ? 280 : 265,
+    color: isBlue ? "#40a5ff" : "#ff5d68",
+    number: data.number,
+    team,
+    role: data.role,
+    kickCooldown: Math.random() * 0.3,
+    isUser: isBlue && data.number === 10
+  };
+}
+
+function createTeams() {
+  blueTeam.length = 0;
+  redTeam.length = 0;
+
+  for (const data of FORMATION_433) {
+    blueTeam.push(makePlayer("BLUE", data));
+
+    // Mirror the formation for the team attacking left.
+    redTeam.push(makePlayer("RED", {
+      ...data,
+      x: 1 - data.x,
+      y: data.y,
+      number: data.number
+    }));
+  }
+}
+
+createTeams();
+
+const blue = blueTeam.find((player) => player.isUser);
+const red = redTeam.find((player) => player.number === 9);
+
+const ball = {
+  x: WORLD.width / 2,
+  y: WORLD.height / 2,
+  vx: 0,
+  vy: 0,
+  radius: 13
+};
+
+function allPlayers() {
+  return [...blueTeam, ...redTeam];
+}
+
 function setStatus(message, duration = 1.5) {
   matchStatus.textContent = message;
   statusTimer = duration;
@@ -89,28 +137,36 @@ function updateScoreboard() {
 }
 
 function clampPlayer(player) {
-  player.x = clamp(
-    player.x,
-    FIELD.x + player.radius,
-    FIELD.x + FIELD.width - player.radius
-  );
-  player.y = clamp(
-    player.y,
-    FIELD.y + player.radius,
-    FIELD.y + FIELD.height - player.radius
-  );
+  const left = FIELD.x + player.radius;
+  const right = FIELD.x + FIELD.width - player.radius;
+  const top = FIELD.y + player.radius;
+  const bottom = FIELD.y + FIELD.height - player.radius;
+
+  player.x = clamp(player.x, left, right);
+  player.y = clamp(player.y, top, bottom);
 }
 
 function resetPositions() {
-  blue.x = WORLD.width * 0.38;
-  blue.y = WORLD.height / 2;
-  blue.vx = 0;
-  blue.vy = 0;
+  for (const player of allPlayers()) {
+    player.x = player.homeX;
+    player.y = player.homeY;
+    player.vx = 0;
+    player.vy = 0;
+    player.kickCooldown = 0.3 + Math.random() * 0.3;
+  }
 
-  red.x = WORLD.width * 0.62;
-  red.y = WORLD.height / 2;
-  red.vx = 0;
-  red.vy = 0;
+  // Place the user-controlled number 10 nearer the center for kickoff.
+  blue.x = WORLD.width * 0.46;
+  blue.y = WORLD.height / 2;
+
+  // Number 9 starts nearby; everyone else retains their formation.
+  const blueStriker = blueTeam.find((p) => p.number === 9);
+  blueStriker.x = WORLD.width * 0.48;
+  blueStriker.y = WORLD.height / 2 + 65;
+
+  const redStriker = redTeam.find((p) => p.number === 9);
+  redStriker.x = WORLD.width * 0.54;
+  redStriker.y = WORLD.height / 2 - 65;
 
   ball.x = WORLD.width / 2;
   ball.y = WORLD.height / 2;
@@ -119,7 +175,7 @@ function resetPositions() {
 
   camera.x = ball.x;
   camera.y = ball.y;
-  kickoffTimer = 0.8;
+  kickoffTimer = 1.0;
 }
 
 function resetMatch() {
@@ -136,6 +192,7 @@ function startMatch() {
   running = true;
   paused = false;
   pauseOverlay.hidden = true;
+  pauseButton.textContent = "Ⅱ PAUSE";
   resetMatch();
   setStatus("KICKOFF", 1.2);
   lastFrame = performance.now();
@@ -144,6 +201,7 @@ function startMatch() {
 
 function togglePause() {
   if (!running) return;
+
   paused = !paused;
   pauseOverlay.hidden = !paused;
   pauseButton.textContent = paused ? "▶ RESUME" : "Ⅱ PAUSE";
@@ -171,9 +229,12 @@ function getMovement() {
 
 function updatePlayer(player, direction, dt, sprint = false) {
   const targetSpeed = player.speed * (sprint ? 1.42 : 1);
-  const acceleration = 11;
-  player.vx += (direction.x * targetSpeed - player.vx) * Math.min(1, acceleration * dt);
-  player.vy += (direction.y * targetSpeed - player.vy) * Math.min(1, acceleration * dt);
+  const acceleration = 10;
+
+  player.vx += (direction.x * targetSpeed - player.vx)
+    * Math.min(1, acceleration * dt);
+  player.vy += (direction.y * targetSpeed - player.vy)
+    * Math.min(1, acceleration * dt);
 
   player.x += player.vx * dt;
   player.y += player.vy * dt;
@@ -181,53 +242,234 @@ function updatePlayer(player, direction, dt, sprint = false) {
   clampPlayer(player);
 }
 
-function updateAI(dt) {
-  // The red player chases the ball, then attempts to move it toward the blue goal.
-  const distanceToBall = length(ball.x - red.x, ball.y - red.y);
-  let targetX = ball.x;
-  let targetY = ball.y;
+function distanceBetween(a, b) {
+  return length(a.x - b.x, a.y - b.y);
+}
 
-  if (distanceToBall < red.radius + ball.radius + 9) {
-    targetX = FIELD.x + 90;
-    targetY = WORLD.height / 2;
+function nearestOutfieldPlayer(team, target) {
+  let nearest = null;
+  let bestDistance = Infinity;
+
+  for (const player of team) {
+    if (player.role === "GK" || player.isUser) continue;
+
+    const distance = distanceBetween(player, target);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      nearest = player;
+    }
   }
 
-  const direction = normalize(targetX - red.x, targetY - red.y);
-  updatePlayer(red, direction, dt, distanceToBall > 500);
+  return nearest;
+}
+
+function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
+  const attackDirection = isBlueTeam ? 1 : -1;
+  const ballProgress = (ball.x - (FIELD.x + FIELD.width / 2))
+    / (FIELD.width / 2);
+  const side = isBlueTeam ? 1 : -1;
+
+  let targetX = player.homeX;
+  let targetY = player.homeY;
+
+  // Teammates shift together according to the ball's position.
+  targetY += clamp(ball.y - WORLD.height / 2, -260, 260) * 0.28;
+
+  if (player.role === "GK") {
+    const goalX = isBlueTeam
+      ? FIELD.x + 45
+      : FIELD.x + FIELD.width - 45;
+
+    targetX = goalX;
+    targetY = WORLD.height / 2
+      + clamp(ball.y - WORLD.height / 2, -145, 145) * 0.65;
+
+    // Goalkeepers only come forward a little when play is nearby.
+    const nearOwnGoal = isBlueTeam
+      ? ball.x < FIELD.x + 450
+      : ball.x > FIELD.x + FIELD.width - 450;
+
+    if (!nearOwnGoal) targetX += attackDirection * 15;
+
+    return {
+      x: targetX,
+      y: clamp(
+        targetY,
+        WORLD.height / 2 - GOAL.height * 0.45,
+        WORLD.height / 2 + GOAL.height * 0.45
+      )
+    };
+  }
+
+  // Defenders push up slightly when their team has the ball far forward.
+  if (player.role === "DEF") {
+    targetX += attackDirection * clamp(ballProgress * 85, -35, 85);
+  }
+
+  if (player.role === "MID") {
+    targetX += attackDirection * clamp(ballProgress * 115, -55, 115);
+  }
+
+  if (player.role === "FWD") {
+    targetX += attackDirection * clamp(ballProgress * 95, -45, 95);
+  }
+
+  // The designated presser actively challenges for the ball.
+  if (player === pressingPlayer) {
+    return { x: ball.x, y: ball.y };
+  }
+
+  // Give nearby teammates passing options rather than sending everyone
+  // directly to the ball.
+  const ballDistance = distanceBetween(player, ball);
+  if (player.role !== "GK" && ballDistance < 260) {
+    const supportOffset = player.number % 2 === 0 ? -100 : 100;
+    targetY += supportOffset;
+    targetX -= attackDirection * 55;
+  }
+
+  // Keep outfielders inside sensible tactical areas.
+  targetX = clamp(targetX, FIELD.x + 85, FIELD.x + FIELD.width - 85);
+  targetY = clamp(targetY, FIELD.y + 70, FIELD.y + FIELD.height - 70);
+
+  return { x: targetX, y: targetY };
+}
+
+function tryAIKick(player, isBlueTeam) {
+  if (player.kickCooldown > 0 || !playerTouchesBall(player)) return;
+
+  const attackDirection = isBlueTeam ? 1 : -1;
+  const goalX = isBlueTeam
+    ? FIELD.x + FIELD.width + 30
+    : FIELD.x - 30;
+
+  // Prefer aiming at the goal, with a small lane variation.
+  const aimY = WORLD.height / 2
+    + clamp((ball.y - WORLD.height / 2) * 0.35, -105, 105);
+
+  let direction = normalize(goalX - ball.x, aimY - ball.y);
+
+  // When very close to their own goal, defenders clear the ball upfield.
+  const ownGoalDanger = isBlueTeam
+    ? ball.x < FIELD.x + 300
+    : ball.x > FIELD.x + FIELD.width - 300;
+
+  if (ownGoalDanger && player.role !== "FWD") {
+    direction = normalize(attackDirection, (player.y - WORLD.height / 2) * 0.002);
+  }
+
+  const power = player.role === "FWD" ? 565 : 445;
+  ball.vx = direction.x * power + player.vx * 0.18;
+  ball.vy = direction.y * power + player.vy * 0.18;
+  player.kickCooldown = 0.8 + Math.random() * 0.5;
+}
+
+function updateTeamAI(team, isBlueTeam, dt, pressingPlayer) {
+  for (const player of team) {
+    if (player.isUser) continue;
+
+    player.kickCooldown = Math.max(0, player.kickCooldown - dt);
+
+    const target = getAIHomeTarget(
+      player,
+      isBlueTeam,
+      pressingPlayer
+    );
+
+    const direction = normalize(
+      target.x - player.x,
+      target.y - player.y
+    );
+
+    const distance = distanceBetween(player, target);
+    const sprint = distance > 300 || player === pressingPlayer;
+
+    updatePlayer(player, direction, dt, sprint);
+
+    tryAIKick(player, isBlueTeam);
+  }
+}
+
+function updateAI(dt) {
+  // One outfield player from each side presses the ball carrier.
+  const bluePresser = nearestOutfieldPlayer(blueTeam, ball);
+  const redPresser = nearestOutfieldPlayer(redTeam, ball);
+
+  // The user remains in direct control of blue number 10.
+  // The blue presser is another teammate and will support the attack.
+  updateTeamAI(blueTeam, true, dt, bluePresser);
+  updateTeamAI(redTeam, false, dt, redPresser);
+
+  // Goalkeepers move to track the ball near their own goal.
+  for (const goalkeeper of [
+    blueTeam.find((p) => p.role === "GK"),
+    redTeam.find((p) => p.role === "GK")
+  ]) {
+    const isBlueTeam = goalkeeper.team === "BLUE";
+    const target = getAIHomeTarget(goalkeeper, isBlueTeam, null);
+    const direction = normalize(target.x - goalkeeper.x, target.y - goalkeeper.y);
+    updatePlayer(goalkeeper, direction, dt);
+    tryAIKick(goalkeeper, isBlueTeam);
+  }
 }
 
 function separatePlayers() {
-  const dx = red.x - blue.x;
-  const dy = red.y - blue.y;
-  const distance = length(dx, dy);
-  const minDistance = blue.radius + red.radius;
+  const players = allPlayers();
 
-  if (distance < minDistance && distance > 0.001) {
-    const overlap = minDistance - distance;
-    const nx = dx / distance;
-    const ny = dy / distance;
+  // Resolve overlap between every pair, including teammates.
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const a = players[i];
+      const b = players[j];
 
-    blue.x -= nx * overlap * 0.5;
-    blue.y -= ny * overlap * 0.5;
-    red.x += nx * overlap * 0.5;
-    red.y += ny * overlap * 0.5;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const distance = length(dx, dy);
+      const minDistance = a.radius + b.radius;
 
-    const relativeVelocity = (red.vx - blue.vx) * nx + (red.vy - blue.vy) * ny;
+      if (distance >= minDistance) continue;
 
-    if (relativeVelocity < 0) {
-      blue.vx += nx * relativeVelocity * 0.5;
-      blue.vy += ny * relativeVelocity * 0.5;
-      red.vx -= nx * relativeVelocity * 0.5;
-      red.vy -= ny * relativeVelocity * 0.5;
+      let nx;
+      let ny;
+
+      if (distance > 0.001) {
+        nx = dx / distance;
+        ny = dy / distance;
+      } else {
+        const fallback = normalize((i + 1) * 0.37, (j + 1) * 0.61);
+        nx = fallback.x;
+        ny = fallback.y;
+      }
+
+      const overlap = minDistance - distance;
+      const aWeight = a.isUser ? 0.65 : 0.5;
+      const bWeight = b.isUser ? 0.65 : 0.5;
+      const totalWeight = aWeight + bWeight;
+
+      a.x -= nx * overlap * (aWeight / totalWeight);
+      a.y -= ny * overlap * (aWeight / totalWeight);
+      b.x += nx * overlap * (bWeight / totalWeight);
+      b.y += ny * overlap * (bWeight / totalWeight);
+
+      const relativeVelocity = (b.vx - a.vx) * nx
+        + (b.vy - a.vy) * ny;
+
+      if (relativeVelocity < 0) {
+        const impulse = relativeVelocity * 0.5;
+        a.vx += nx * impulse;
+        a.vy += ny * impulse;
+        b.vx -= nx * impulse;
+        b.vy -= ny * impulse;
+      }
+
+      clampPlayer(a);
+      clampPlayer(b);
     }
-
-    clampPlayer(blue);
-    clampPlayer(red);
   }
 }
 
 function playerTouchesBall(player) {
-  return length(ball.x - player.x, ball.y - player.y)
+  return distanceBetween(player, ball)
     <= player.radius + ball.radius + 7;
 }
 
@@ -249,7 +491,6 @@ function updateBall(dt) {
   const goalTop = WORLD.height / 2 - GOAL.height / 2;
   const goalBottom = WORLD.height / 2 + GOAL.height / 2;
 
-  // Goals are open only in the goal-mouth area.
   if (ball.x < fieldLeft && ball.y > goalTop && ball.y < goalBottom) {
     redScore++;
     updateScoreboard();
@@ -266,7 +507,6 @@ function updateBall(dt) {
     return;
   }
 
-  // Outside the goal mouth, the pitch boundary reflects the ball.
   if (ball.y - ball.radius < fieldTop) {
     ball.y = fieldTop + ball.radius;
     ball.vy = Math.abs(ball.vy) * 0.78;
@@ -277,20 +517,24 @@ function updateBall(dt) {
     ball.vy = -Math.abs(ball.vy) * 0.78;
   }
 
-  if (ball.x - ball.radius < fieldLeft &&
-      !(ball.y > goalTop && ball.y < goalBottom)) {
+  if (
+    ball.x - ball.radius < fieldLeft &&
+    !(ball.y > goalTop && ball.y < goalBottom)
+  ) {
     ball.x = fieldLeft + ball.radius;
     ball.vx = Math.abs(ball.vx) * 0.78;
   }
 
-  if (ball.x + ball.radius > fieldRight &&
-      !(ball.y > goalTop && ball.y < goalBottom)) {
+  if (
+    ball.x + ball.radius > fieldRight &&
+    !(ball.y > goalTop && ball.y < goalBottom)
+  ) {
     ball.x = fieldRight - ball.radius;
     ball.vx = -Math.abs(ball.vx) * 0.78;
   }
 
-  // A simple player-to-ball collision gives the ball a little forward momentum.
-  for (const player of [blue, red]) {
+  // Ball collision with all 22 players.
+  for (const player of allPlayers()) {
     const dx = ball.x - player.x;
     const dy = ball.y - player.y;
     const distance = length(dx, dy);
@@ -304,6 +548,7 @@ function updateBall(dt) {
       ball.y = player.y + ny * minDistance;
 
       const approach = player.vx * nx + player.vy * ny;
+
       if (approach > 0) {
         ball.vx += nx * approach * 0.75;
         ball.vy += ny * approach * 0.75;
@@ -320,8 +565,6 @@ function kickBall(player, power, actionName) {
     return;
   }
 
-  // Aim from the player toward the ball. If perfectly aligned, use the
-  // player's current movement direction, with a forward fallback.
   let direction = normalize(ball.x - player.x, ball.y - player.y);
 
   if (length(direction.x, direction.y) < 0.001) {
@@ -329,7 +572,7 @@ function kickBall(player, power, actionName) {
   }
 
   if (length(direction.x, direction.y) < 0.001) {
-    direction = { x: player === blue ? 1 : -1, y: 0 };
+    direction = { x: player.team === "BLUE" ? 1 : -1, y: 0 };
   }
 
   ball.vx = direction.x * power + player.vx * 0.25;
@@ -341,8 +584,8 @@ function kickBall(player, power, actionName) {
 function updateCamera(dt) {
   if (!cameraFollow) return;
 
-  const targetX = (ball.x * 0.72) + (blue.x * 0.28);
-  const targetY = (ball.y * 0.72) + (blue.y * 0.28);
+  const targetX = ball.x * 0.72 + blue.x * 0.28;
+  const targetY = ball.y * 0.72 + blue.y * 0.28;
   const smoothing = 1 - Math.exp(-4 * dt);
 
   camera.x += (targetX - camera.x) * smoothing;
@@ -351,8 +594,17 @@ function updateCamera(dt) {
   const halfWidth = canvas.width / (2 * CAMERA_ZOOM);
   const halfHeight = canvas.height / (2 * CAMERA_ZOOM);
 
-  camera.x = clamp(camera.x, FIELD.x + halfWidth, FIELD.x + FIELD.width - halfWidth);
-  camera.y = clamp(camera.y, FIELD.y + halfHeight, FIELD.y + FIELD.height - halfHeight);
+  camera.x = clamp(
+    camera.x,
+    FIELD.x + halfWidth,
+    FIELD.x + FIELD.width - halfWidth
+  );
+
+  camera.y = clamp(
+    camera.y,
+    FIELD.y + halfHeight,
+    FIELD.y + FIELD.height - halfHeight
+  );
 }
 
 function drawPitch(context, x, y, width, height, stripeCount = 12) {
@@ -361,6 +613,7 @@ function drawPitch(context, x, y, width, height, stripeCount = 12) {
 
   if (stripedPitch) {
     const stripeWidth = width / stripeCount;
+
     for (let i = 0; i < stripeCount; i++) {
       if (i % 2 === 0) {
         context.fillStyle = "#ffffff08";
@@ -379,12 +632,24 @@ function drawPitch(context, x, y, width, height, stripeCount = 12) {
   context.stroke();
 
   context.beginPath();
-  context.arc(x + width / 2, y + height / 2, height * 0.16, 0, Math.PI * 2);
+  context.arc(
+    x + width / 2,
+    y + height / 2,
+    height * 0.16,
+    0,
+    Math.PI * 2
+  );
   context.stroke();
 
   context.fillStyle = "#e8fff0";
   context.beginPath();
-  context.arc(x + width / 2, y + height / 2, Math.max(2, width / 300), 0, Math.PI * 2);
+  context.arc(
+    x + width / 2,
+    y + height / 2,
+    Math.max(2, width / 300),
+    0,
+    Math.PI * 2
+  );
   context.fill();
 
   const boxWidth = width * 0.15;
@@ -393,35 +658,86 @@ function drawPitch(context, x, y, width, height, stripeCount = 12) {
   const smallBoxHeight = height * 0.17;
 
   context.strokeRect(x, y + (height - boxHeight) / 2, boxWidth, boxHeight);
-  context.strokeRect(x + width - boxWidth, y + (height - boxHeight) / 2, boxWidth, boxHeight);
-  context.strokeRect(x, y + (height - smallBoxHeight) / 2, smallBoxWidth, smallBoxHeight);
-  context.strokeRect(x + width - smallBoxWidth, y + (height - smallBoxHeight) / 2, smallBoxWidth, smallBoxHeight);
+  context.strokeRect(
+    x + width - boxWidth,
+    y + (height - boxHeight) / 2,
+    boxWidth,
+    boxHeight
+  );
+  context.strokeRect(
+    x,
+    y + (height - smallBoxHeight) / 2,
+    smallBoxWidth,
+    smallBoxHeight
+  );
+  context.strokeRect(
+    x + width - smallBoxWidth,
+    y + (height - smallBoxHeight) / 2,
+    smallBoxWidth,
+    smallBoxHeight
+  );
 
-  // Goals.
   context.fillStyle = "#e9fff0";
-  context.fillRect(x - width * 0.018, y + (height - height * 0.195) / 2, width * 0.018, height * 0.195);
-  context.fillRect(x + width, y + (height - height * 0.195) / 2, width * 0.018, height * 0.195);
+  context.fillRect(
+    x - width * 0.018,
+    y + (height - height * 0.195) / 2,
+    width * 0.018,
+    height * 0.195
+  );
+  context.fillRect(
+    x + width,
+    y + (height - height * 0.195) / 2,
+    width * 0.018,
+    height * 0.195
+  );
 }
 
 function drawPlayer(player) {
   ctx.save();
 
+  // Shadow.
   ctx.beginPath();
-  ctx.ellipse(player.x, player.y + 7, player.radius * 0.92, player.radius * 0.67, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    player.x,
+    player.y + 6,
+    player.radius * 0.92,
+    player.radius * 0.67,
+    0,
+    0,
+    Math.PI * 2
+  );
   ctx.fillStyle = "#00130b66";
   ctx.fill();
+
+  // Highlight the player controlled by the user.
+  if (player.isUser) {
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = "#fff6a8";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Goalkeepers get a gold outer ring.
+  if (player.role === "GK") {
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 2, 0, Math.PI * 2);
+    ctx.strokeStyle = "#ffd166";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
 
   ctx.beginPath();
   ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
   ctx.fillStyle = player.color;
   ctx.fill();
 
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 2;
   ctx.strokeStyle = "#ffffffcc";
   ctx.stroke();
 
   ctx.fillStyle = "#ffffff";
-  ctx.font = "800 19px Inter, sans-serif";
+  ctx.font = `800 ${player.radius < 20 ? 12 : 15}px Inter, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(String(player.number), player.x, player.y + 1);
@@ -433,7 +749,15 @@ function drawBall() {
   ctx.save();
 
   ctx.beginPath();
-  ctx.ellipse(ball.x + 3, ball.y + 6, ball.radius * 1.05, ball.radius * 0.72, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    ball.x + 3,
+    ball.y + 6,
+    ball.radius * 1.05,
+    ball.radius * 0.72,
+    0,
+    0,
+    Math.PI * 2
+  );
   ctx.fillStyle = "#00130b77";
   ctx.fill();
 
@@ -466,10 +790,11 @@ function drawMainGame() {
 
   drawPitch(ctx, FIELD.x, FIELD.y, FIELD.width, FIELD.height);
 
-  drawPlayer(blue);
-  drawPlayer(red);
-  drawBall();
+  // Draw the farthest players first so nearby players remain visible.
+  const players = allPlayers().sort((a, b) => a.y - b.y);
+  for (const player of players) drawPlayer(player);
 
+  drawBall();
   ctx.restore();
 
   if (kickoffTimer > 0) {
@@ -495,32 +820,36 @@ function drawMinimap() {
     (w - pad * 2) / WORLD.width,
     (h - pad * 2) / WORLD.height
   );
+
   const pitchW = FIELD.width * scale;
   const pitchH = FIELD.height * scale;
   const pitchX = (w - pitchW) / 2;
   const pitchY = (h - pitchH) / 2;
 
-  // Entire pitch, scaled uniformly to fit in the small tactical window.
   drawPitch(mapCtx, pitchX, pitchY, pitchW, pitchH, 12);
 
-  function marker(player, radius) {
+  // Show every player on the tactical map.
+  for (const player of allPlayers()) {
     const px = pitchX + (player.x - FIELD.x) * scale;
     const py = pitchY + (player.y - FIELD.y) * scale;
 
     mapCtx.beginPath();
-    mapCtx.arc(px, py, radius, 0, Math.PI * 2);
+    mapCtx.arc(px, py, player.isUser ? 4.5 : 3.1, 0, Math.PI * 2);
     mapCtx.fillStyle = player.color;
     mapCtx.fill();
-    mapCtx.lineWidth = 1.5;
-    mapCtx.strokeStyle = "#ffffff";
+
+    mapCtx.lineWidth = player.isUser ? 1.5 : 0.8;
+    mapCtx.strokeStyle = player.isUser ? "#fff6a8" : "#ffffffcc";
     mapCtx.stroke();
   }
 
-  // Camera viewport rectangle shows which section is visible in the main view.
+  // Camera viewport.
   const visibleWorldWidth = canvas.width / CAMERA_ZOOM;
   const visibleWorldHeight = canvas.height / CAMERA_ZOOM;
-  const viewX = pitchX + (camera.x - visibleWorldWidth / 2 - FIELD.x) * scale;
-  const viewY = pitchY + (camera.y - visibleWorldHeight / 2 - FIELD.y) * scale;
+  const viewX = pitchX
+    + (camera.x - visibleWorldWidth / 2 - FIELD.x) * scale;
+  const viewY = pitchY
+    + (camera.y - visibleWorldHeight / 2 - FIELD.y) * scale;
 
   mapCtx.save();
   mapCtx.strokeStyle = "#ffffffd9";
@@ -533,9 +862,6 @@ function drawMinimap() {
     visibleWorldHeight * scale
   );
   mapCtx.restore();
-
-  marker(blue, 4.5);
-  marker(red, 4.5);
 
   const ballX = pitchX + (ball.x - FIELD.x) * scale;
   const ballY = pitchY + (ball.y - FIELD.y) * scale;
@@ -554,17 +880,22 @@ function drawMinimap() {
 function update(dt) {
   if (statusTimer > 0) {
     statusTimer -= dt;
-    if (statusTimer <= 0 && !paused) matchStatus.textContent = "MATCH IN PLAY";
+    if (statusTimer <= 0 && !paused) {
+      matchStatus.textContent = "MATCH IN PLAY";
+    }
   }
 
   if (kickoffTimer > 0) {
     kickoffTimer -= dt;
-    blue.vx = 0;
-    blue.vy = 0;
-    red.vx = 0;
-    red.vy = 0;
+
+    for (const player of allPlayers()) {
+      player.vx = 0;
+      player.vy = 0;
+    }
+
     ball.vx = 0;
     ball.vy = 0;
+    updateCamera(dt);
     return;
   }
 
@@ -605,14 +936,19 @@ resumeButton.addEventListener("click", togglePause);
 
 cameraButton.addEventListener("click", () => {
   cameraFollow = !cameraFollow;
-  cameraButton.textContent = cameraFollow ? "CAMERA: FOLLOW" : "CAMERA: FIXED";
-  if (!cameraFollow) setStatus("FIXED CAMERA", 1);
-  else setStatus("FOLLOW CAMERA", 1);
+  cameraButton.textContent = cameraFollow
+    ? "CAMERA: FOLLOW"
+    : "CAMERA: FIXED";
+
+  setStatus(cameraFollow ? "FOLLOW CAMERA" : "FIXED CAMERA", 1);
 });
 
 grassButton.addEventListener("click", () => {
   stripedPitch = !stripedPitch;
-  grassButton.textContent = stripedPitch ? "PITCH: STRIPES" : "PITCH: PLAIN";
+  grassButton.textContent = stripedPitch
+    ? "PITCH: STRIPES"
+    : "PITCH: PLAIN";
+
   renderWhenIdle();
 });
 
@@ -656,6 +992,8 @@ document.querySelectorAll("[data-move]").forEach((button) => {
 
 function bindActionButton(id, action) {
   const button = document.getElementById(id);
+  if (!button) return;
+
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     action();
@@ -666,14 +1004,18 @@ bindActionButton("mobileShoot", () => kickBall(blue, 720, "SHOT!"));
 bindActionButton("mobilePass", () => kickBall(blue, 390, "PASS!"));
 
 const sprintButton = document.getElementById("mobileSprint");
-sprintButton.addEventListener("pointerdown", (event) => {
-  event.preventDefault();
-  touchMoves.add("sprint");
-});
-["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => {
-  sprintButton.addEventListener(name, () => touchMoves.delete("sprint"));
-});
 
-// Initial pitch preview and minimap are drawn before the match starts.
+if (sprintButton) {
+  sprintButton.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    touchMoves.add("sprint");
+  });
+
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => {
+    sprintButton.addEventListener(name, () => touchMoves.delete("sprint"));
+  });
+}
+
+// Draw the pitch and all 22 players before the match begins.
 resetPositions();
 render();
