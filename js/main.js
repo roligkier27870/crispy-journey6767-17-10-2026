@@ -1,4 +1,3 @@
-
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const minimap = document.getElementById("minimap");
@@ -36,8 +35,6 @@ let statusTimer = 0;
 
 const camera = { x: WORLD.width / 2, y: WORLD.height / 2 };
 
-// 4-3-3 formation.
-// Blue attacks right; Red attacks left.
 const FORMATION_433 = [
   { number: 1, role: "GK", x: 0.045, y: 0.50 },
   { number: 2, role: "DEF", x: 0.17, y: 0.18 },
@@ -92,7 +89,10 @@ function makePlayer(team, data) {
     team,
     role: data.role,
     kickCooldown: Math.random() * 0.3,
-    isUser: isBlue && data.number === 10
+    isUser: isBlue && data.number === 10,
+    diveTimer: 0,
+    diveDirection: 0,
+    saveCooldown: 0
   };
 }
 
@@ -102,7 +102,6 @@ function createTeams() {
 
   for (const data of FORMATION_433) {
     blueTeam.push(makePlayer("BLUE", data));
-
     redTeam.push(makePlayer("RED", {
       ...data,
       x: 1 - data.x,
@@ -113,9 +112,9 @@ function createTeams() {
 
 createTeams();
 
-// IMPORTANT: let allows the controlled player to change.
-let blue = blueTeam.find((player) => player.isUser);
-const red = redTeam.find((player) => player.number === 9);
+let blue = blueTeam.find(player => player.isUser);
+
+const red = redTeam.find(player => player.number === 9);
 
 const ball = {
   x: WORLD.width / 2,
@@ -124,6 +123,12 @@ const ball = {
   vy: 0,
   radius: 13
 };
+
+// Goalkeeper AI tuning.
+const GK_REACTION_DISTANCE = 430;
+const GK_SAVE_REACH = 43;
+const GK_DIVE_REACH = 76;
+const GK_DIVE_TIME = 0.48;
 
 function allPlayers() {
   return [...blueTeam, ...redTeam];
@@ -145,6 +150,7 @@ function clampPlayer(player) {
     FIELD.x + player.radius,
     FIELD.x + FIELD.width - player.radius
   );
+
   player.y = clamp(
     player.y,
     FIELD.y + player.radius,
@@ -159,20 +165,22 @@ function resetPositions() {
     player.vx = 0;
     player.vy = 0;
     player.kickCooldown = 0.3 + Math.random() * 0.3;
+    player.diveTimer = 0;
+    player.diveDirection = 0;
+    player.saveCooldown = 0;
     player.isUser = false;
   }
 
-  // Start each kickoff with number 10 under user control.
-  blue = blueTeam.find((player) => player.number === 10);
+  blue = blueTeam.find(player => player.number === 10);
   blue.isUser = true;
   blue.x = WORLD.width * 0.46;
   blue.y = WORLD.height / 2;
 
-  const blueStriker = blueTeam.find((p) => p.number === 9);
+  const blueStriker = blueTeam.find(p => p.number === 9);
   blueStriker.x = WORLD.width * 0.48;
   blueStriker.y = WORLD.height / 2 + 65;
 
-  const redStriker = redTeam.find((p) => p.number === 9);
+  const redStriker = redTeam.find(p => p.number === 9);
   redStriker.x = WORLD.width * 0.54;
   redStriker.y = WORLD.height / 2 - 65;
 
@@ -229,10 +237,10 @@ function getMovement() {
   let x = 0;
   let y = 0;
 
-  if (keys.has("a") || keys.has("arrowleft") || touchMoves.has("left")) x -= 1;
-  if (keys.has("d") || keys.has("arrowright") || touchMoves.has("right")) x += 1;
-  if (keys.has("w") || keys.has("arrowup") || touchMoves.has("up")) y -= 1;
-  if (keys.has("s") || keys.has("arrowdown") || touchMoves.has("down")) y += 1;
+  if (keys.has("a") || keys.has("arrowleft") || touchMoves.has("left")) x--;
+  if (keys.has("d") || keys.has("arrowright") || touchMoves.has("right")) x++;
+  if (keys.has("w") || keys.has("arrowup") || touchMoves.has("up")) y--;
+  if (keys.has("s") || keys.has("arrowdown") || touchMoves.has("down")) y++;
 
   return normalize(x, y);
 }
@@ -243,6 +251,7 @@ function updatePlayer(player, direction, dt, sprint = false) {
 
   player.vx += (direction.x * targetSpeed - player.vx)
     * Math.min(1, acceleration * dt);
+
   player.vy += (direction.y * targetSpeed - player.vy)
     * Math.min(1, acceleration * dt);
 
@@ -256,29 +265,23 @@ function distanceBetween(a, b) {
   return length(a.x - b.x, a.y - b.y);
 }
 
-// PLAYER SWITCHING
-// Q or Tab cycles through the blue team's outfield players.
-// Teammates nearest to the ball appear first in the cycle.
 function switchControlledPlayer() {
   if (!running || paused || kickoffTimer > 0) return;
 
   const candidates = blueTeam
-    .filter((player) => player.role !== "GK")
+    .filter(player => player.role !== "GK")
     .sort((a, b) =>
       distanceBetween(a, ball) - distanceBetween(b, ball)
     );
 
   if (candidates.length < 2) return;
 
-  const currentIndex = candidates.findIndex(
-    (player) => player === blue
-  );
+  const currentIndex = candidates.findIndex(player => player === blue);
 
   const nextIndex = currentIndex < 0
     ? 0
     : (currentIndex + 1) % candidates.length;
 
-  // The previous player will be managed by AI again.
   if (blue) blue.isUser = false;
 
   blue = candidates[nextIndex];
@@ -296,6 +299,7 @@ function nearestOutfieldPlayer(team, target) {
     if (player.role === "GK" || player.isUser) continue;
 
     const distance = distanceBetween(player, target);
+
     if (distance < bestDistance) {
       bestDistance = distance;
       nearest = player;
@@ -305,8 +309,116 @@ function nearestOutfieldPlayer(team, target) {
   return nearest;
 }
 
+// Predict the ball's vertical position at the goalkeeper's line.
+function predictBallYAtX(targetX) {
+  if (Math.abs(ball.vx) < 1) return ball.y;
+
+  const time = (targetX - ball.x) / ball.vx;
+
+  if (time <= 0 || time > 1.8) return ball.y;
+
+  // Approximate rolling friction during the prediction.
+  const predictedY = ball.y + ball.vy * time * 0.65;
+
+  return clamp(
+    predictedY,
+    FIELD.y + ball.radius,
+    FIELD.y + FIELD.height - ball.radius
+  );
+}
+
+function getGoalkeeperTarget(keeper) {
+  const isBlueTeam = keeper.team === "BLUE";
+  const goalX = isBlueTeam
+    ? FIELD.x
+    : FIELD.x + FIELD.width;
+
+  // Keep the keeper inside the field, just in front of the goal.
+  const targetX = isBlueTeam
+    ? goalX + 39
+    : goalX - 39;
+
+  const goalTop = WORLD.height / 2 - GOAL.height / 2;
+  const goalBottom = WORLD.height / 2 + GOAL.height / 2;
+
+  const movingTowardGoal = isBlueTeam
+    ? ball.vx < -35
+    : ball.vx > 35;
+
+  const distanceToGoal = Math.abs(ball.x - goalX);
+
+  let targetY;
+
+  if (
+    movingTowardGoal &&
+    distanceToGoal < GK_REACTION_DISTANCE
+  ) {
+    targetY = predictBallYAtX(targetX);
+  } else {
+    // Track the ball while maintaining a central goal position.
+    targetY = WORLD.height / 2
+      + clamp(ball.y - WORLD.height / 2, -155, 155) * 0.68;
+  }
+
+  return {
+    x: targetX,
+    y: clamp(targetY, goalTop + 18, goalBottom - 18)
+  };
+}
+
+function updateGoalkeeper(keeper, dt) {
+  keeper.kickCooldown = Math.max(0, keeper.kickCooldown - dt);
+  keeper.saveCooldown = Math.max(0, keeper.saveCooldown - dt);
+  keeper.diveTimer = Math.max(0, keeper.diveTimer - dt);
+
+  const target = getGoalkeeperTarget(keeper);
+
+  const direction = normalize(
+    target.x - keeper.x,
+    target.y - keeper.y
+  );
+
+  const distance = distanceBetween(keeper, target);
+
+  const isBlueTeam = keeper.team === "BLUE";
+  const goalX = isBlueTeam ? FIELD.x : FIELD.x + FIELD.width;
+  const incoming = isBlueTeam ? ball.vx < -35 : ball.vx > 35;
+
+  // During a dive, the keeper moves faster toward the shot.
+  if (keeper.diveTimer > 0) {
+    const diveDirection = normalize(
+      isBlueTeam ? 1 : -1,
+      keeper.diveDirection
+    );
+
+    updatePlayer(keeper, diveDirection, dt, true);
+  } else {
+    updatePlayer(keeper, direction, dt, distance > 35);
+  }
+
+  // Start a dive when a shot is approaching and the ball is not
+  // comfortably within the keeper's normal reach.
+  const closeToGoal = Math.abs(ball.x - goalX) < GK_REACTION_DISTANCE;
+  const predictedY = predictBallYAtX(keeper.x);
+  const verticalGap = Math.abs(predictedY - keeper.y);
+
+  if (
+    incoming &&
+    closeToGoal &&
+    verticalGap > 22 &&
+    verticalGap < GK_DIVE_REACH &&
+    keeper.diveTimer <= 0 &&
+    keeper.saveCooldown <= 0
+  ) {
+    keeper.diveTimer = GK_DIVE_TIME;
+    keeper.diveDirection = Math.sign(predictedY - keeper.y);
+    keeper.saveCooldown = 0.25;
+  }
+}
+
 function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
   const attackDirection = isBlueTeam ? 1 : -1;
+
   const ballProgress =
     (ball.x - (FIELD.x + FIELD.width / 2)) / (FIELD.width / 2);
 
@@ -316,28 +428,7 @@ function getAIHomeTarget(player, isBlueTeam, pressingPlayer) {
   targetY += clamp(ball.y - WORLD.height / 2, -260, 260) * 0.28;
 
   if (player.role === "GK") {
-    const goalX = isBlueTeam
-      ? FIELD.x + 45
-      : FIELD.x + FIELD.width - 45;
-
-    targetX = goalX;
-    targetY = WORLD.height / 2
-      + clamp(ball.y - WORLD.height / 2, -145, 145) * 0.65;
-
-    const nearOwnGoal = isBlueTeam
-      ? ball.x < FIELD.x + 450
-      : ball.x > FIELD.x + FIELD.width - 450;
-
-    if (!nearOwnGoal) targetX += attackDirection * 15;
-
-    return {
-      x: targetX,
-      y: clamp(
-        targetY,
-        WORLD.height / 2 - GOAL.height * 0.45,
-        WORLD.height / 2 + GOAL.height * 0.45
-      )
-    };
+    return getGoalkeeperTarget(player);
   }
 
   if (player.role === "DEF") {
@@ -376,9 +467,14 @@ function playerTouchesBall(player) {
 }
 
 function tryAIKick(player, isBlueTeam) {
-  if (player.kickCooldown > 0 || !playerTouchesBall(player)) return;
+  if (
+    player.role === "GK" ||
+    player.kickCooldown > 0 ||
+    !playerTouchesBall(player)
+  ) return;
 
   const attackDirection = isBlueTeam ? 1 : -1;
+
   const goalX = isBlueTeam
     ? FIELD.x + FIELD.width + 30
     : FIELD.x - 30;
@@ -400,14 +496,16 @@ function tryAIKick(player, isBlueTeam) {
   }
 
   const power = player.role === "FWD" ? 565 : 445;
+
   ball.vx = direction.x * power + player.vx * 0.18;
   ball.vy = direction.y * power + player.vy * 0.18;
+
   player.kickCooldown = 0.8 + Math.random() * 0.5;
 }
 
 function updateTeamAI(team, isBlueTeam, dt, pressingPlayer) {
   for (const player of team) {
-    if (player.isUser) continue;
+    if (player.isUser || player.role === "GK") continue;
 
     player.kickCooldown = Math.max(0, player.kickCooldown - dt);
 
@@ -437,21 +535,8 @@ function updateAI(dt) {
   updateTeamAI(blueTeam, true, dt, bluePresser);
   updateTeamAI(redTeam, false, dt, redPresser);
 
-  // Goalkeepers remain AI-controlled.
-  for (const goalkeeper of [
-    blueTeam.find((p) => p.role === "GK"),
-    redTeam.find((p) => p.role === "GK")
-  ]) {
-    const isBlueTeam = goalkeeper.team === "BLUE";
-    const target = getAIHomeTarget(goalkeeper, isBlueTeam, null);
-    const direction = normalize(
-      target.x - goalkeeper.x,
-      target.y - goalkeeper.y
-    );
-
-    updatePlayer(goalkeeper, direction, dt);
-    tryAIKick(goalkeeper, isBlueTeam);
-  }
+  updateGoalkeeper(blueTeam.find(p => p.role === "GK"), dt);
+  updateGoalkeeper(redTeam.find(p => p.role === "GK"), dt);
 }
 
 function separatePlayers() {
@@ -508,6 +593,79 @@ function separatePlayers() {
   }
 }
 
+// Intercept shots before the goal-line scoring checks.
+// Returns true when a goalkeeper makes contact with the ball.
+function tryGoalkeeperSave() {
+  const goalTop = WORLD.height / 2 - GOAL.height / 2;
+  const goalBottom = WORLD.height / 2 + GOAL.height / 2;
+
+  for (const keeper of [
+    blueTeam.find(p => p.role === "GK"),
+    redTeam.find(p => p.role === "GK")
+  ]) {
+    const isBlueTeam = keeper.team === "BLUE";
+    const goalX = isBlueTeam ? FIELD.x : FIELD.x + FIELD.width;
+
+    const incoming = isBlueTeam ? ball.vx < -35 : ball.vx > 35;
+
+    if (!incoming || keeper.saveCooldown > 0) continue;
+
+    // The ball must be travelling through or close to the goalmouth.
+    if (ball.y < goalTop - 45 || ball.y > goalBottom + 45) continue;
+
+    const dx = ball.x - keeper.x;
+    const dy = ball.y - keeper.y;
+    const distance = length(dx, dy);
+
+    const diving = keeper.diveTimer > 0;
+    const reach = diving ? GK_DIVE_REACH : GK_SAVE_REACH;
+
+    if (distance > reach) continue;
+
+    // Deflect toward the pitch rather than back into the net.
+    const direction = isBlueTeam ? 1 : -1;
+
+    // Move the ball away from the keeper to prevent repeated contacts.
+    ball.x = keeper.x + direction * (keeper.radius + ball.radius + 5);
+
+    const impact = Math.hypot(ball.vx, ball.vy);
+    const offset = clamp(
+      (ball.y - keeper.y) / Math.max(keeper.radius, 1),
+      -1.5,
+      1.5
+    );
+
+    // Low shots are more likely to produce a rebound.
+    const rebound = Math.random() < 0.35;
+
+    if (rebound) {
+      ball.vx = direction * Math.max(180, impact * 0.48);
+      ball.vy = clamp(
+        ball.vy * 0.45 + offset * 100,
+        -260,
+        260
+      );
+    } else {
+      ball.vx = direction * Math.max(230, impact * 0.62);
+      ball.vy = clamp(
+        ball.vy * 0.62 + offset * 135,
+        -340,
+        340
+      );
+    }
+
+    keeper.vx = -direction * 35;
+    keeper.saveCooldown = 0.22;
+    keeper.diveTimer = 0;
+
+    setStatus(rebound ? "SAVE! REBOUND!" : "WHAT A SAVE!", 1.15);
+
+    return true;
+  }
+
+  return false;
+}
+
 function updateBall(dt) {
   ball.x += ball.vx * dt;
   ball.y += ball.vy * dt;
@@ -525,6 +683,9 @@ function updateBall(dt) {
   const fieldRight = FIELD.x + FIELD.width;
   const goalTop = WORLD.height / 2 - GOAL.height / 2;
   const goalBottom = WORLD.height / 2 + GOAL.height / 2;
+
+  // Goalkeepers get their chance to save before a goal is awarded.
+  tryGoalkeeperSave();
 
   if (ball.x < fieldLeft && ball.y > goalTop && ball.y < goalBottom) {
     redScore++;
@@ -592,6 +753,8 @@ function updateBall(dt) {
   }
 }
 
+// Shooting now aims toward the opponent's goal.
+// Passing aims toward a nearby teammate.
 function kickBall(player, power, actionName) {
   if (!running || paused || kickoffTimer > 0) return;
 
@@ -600,18 +763,57 @@ function kickBall(player, power, actionName) {
     return;
   }
 
-  let direction = normalize(ball.x - player.x, ball.y - player.y);
+  const isBlueTeam = player.team === "BLUE";
+  const attackDirection = isBlueTeam ? 1 : -1;
 
-  if (length(direction.x, direction.y) < 0.001) {
-    direction = normalize(player.vx, player.vy);
+  let direction;
+
+  if (actionName === "PASS!") {
+    const teammates = isBlueTeam ? blueTeam : redTeam;
+
+    let target = null;
+    let bestScore = Infinity;
+
+    for (const teammate of teammates) {
+      if (teammate === player || teammate.role === "GK") continue;
+
+      const forwardDistance = (teammate.x - player.x) * attackDirection;
+
+      if (forwardDistance < -100) continue;
+
+      const score = distanceBetween(player, teammate)
+        + Math.max(0, 180 - forwardDistance) * 0.5;
+
+      if (score < bestScore) {
+        bestScore = score;
+        target = teammate;
+      }
+    }
+
+    direction = target
+      ? normalize(
+          target.x - ball.x + target.vx * 0.22,
+          target.y - ball.y + target.vy * 0.22
+        )
+      : normalize(attackDirection, 0);
+  } else {
+    const goalX = isBlueTeam
+      ? FIELD.x + FIELD.width + GOAL.depth
+      : FIELD.x - GOAL.depth;
+
+    // Aim toward the goal, with a small adjustment based on ball position.
+    const goalY = WORLD.height / 2
+      + clamp((ball.y - WORLD.height / 2) * 0.18, -55, 55);
+
+    direction = normalize(goalX - ball.x, goalY - ball.y);
+
+    // Moving players influence shot power slightly.
+    const speed = length(player.vx, player.vy);
+    power *= 1 + Math.min(speed / 1200, 0.12);
   }
 
-  if (length(direction.x, direction.y) < 0.001) {
-    direction = { x: player.team === "BLUE" ? 1 : -1, y: 0 };
-  }
-
-  ball.vx = direction.x * power + player.vx * 0.25;
-  ball.vy = direction.y * power + player.vy * 0.25;
+  ball.vx = direction.x * power + player.vx * 0.16;
+  ball.vy = direction.y * power + player.vy * 0.16;
 
   setStatus(actionName, 0.65);
 }
@@ -693,18 +895,21 @@ function drawPitch(context, x, y, width, height, stripeCount = 12) {
   const smallBoxHeight = height * 0.17;
 
   context.strokeRect(x, y + (height - boxHeight) / 2, boxWidth, boxHeight);
+
   context.strokeRect(
     x + width - boxWidth,
     y + (height - boxHeight) / 2,
     boxWidth,
     boxHeight
   );
+
   context.strokeRect(
     x,
     y + (height - smallBoxHeight) / 2,
     smallBoxWidth,
     smallBoxHeight
   );
+
   context.strokeRect(
     x + width - smallBoxWidth,
     y + (height - smallBoxHeight) / 2,
@@ -713,12 +918,14 @@ function drawPitch(context, x, y, width, height, stripeCount = 12) {
   );
 
   context.fillStyle = "#e9fff0";
+
   context.fillRect(
     x - width * 0.018,
     y + (height - height * 0.195) / 2,
     width * 0.018,
     height * 0.195
   );
+
   context.fillRect(
     x + width,
     y + (height - height * 0.195) / 2,
@@ -730,7 +937,6 @@ function drawPitch(context, x, y, width, height, stripeCount = 12) {
 function drawPlayer(player) {
   ctx.save();
 
-  // Shadow.
   ctx.beginPath();
   ctx.ellipse(
     player.x,
@@ -744,7 +950,6 @@ function drawPlayer(player) {
   ctx.fillStyle = "#00130b66";
   ctx.fill();
 
-  // Highlight the currently controlled player.
   if (player.isUser) {
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius + 6, 0, Math.PI * 2);
@@ -753,13 +958,20 @@ function drawPlayer(player) {
     ctx.stroke();
   }
 
-  // Goalkeepers get a gold outer ring.
   if (player.role === "GK") {
     ctx.beginPath();
     ctx.arc(player.x, player.y, player.radius + 2, 0, Math.PI * 2);
     ctx.strokeStyle = "#ffd166";
     ctx.lineWidth = 2;
     ctx.stroke();
+
+    if (player.diveTimer > 0) {
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius + 8, 0, Math.PI * 2);
+      ctx.strokeStyle = "#fff0a8";
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
   }
 
   ctx.beginPath();
@@ -826,6 +1038,7 @@ function drawMainGame() {
   drawPitch(ctx, FIELD.x, FIELD.y, FIELD.width, FIELD.height);
 
   const players = allPlayers().sort((a, b) => a.y - b.y);
+
   for (const player of players) drawPlayer(player);
 
   drawBall();
@@ -839,7 +1052,11 @@ function drawMainGame() {
     ctx.font = "700 13px Inter, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("KICKOFF IN PROGRESS", canvas.width / 2, canvas.height - 19);
+    ctx.fillText(
+      "KICKOFF IN PROGRESS",
+      canvas.width / 2,
+      canvas.height - 19
+    );
     ctx.restore();
   }
 }
@@ -847,6 +1064,7 @@ function drawMainGame() {
 function drawMinimap() {
   const w = minimap.width;
   const h = minimap.height;
+
   mapCtx.clearRect(0, 0, w, h);
 
   const pad = 9;
@@ -878,8 +1096,10 @@ function drawMinimap() {
 
   const visibleWorldWidth = canvas.width / CAMERA_ZOOM;
   const visibleWorldHeight = canvas.height / CAMERA_ZOOM;
+
   const viewX = pitchX
     + (camera.x - visibleWorldWidth / 2 - FIELD.x) * scale;
+
   const viewY = pitchY
     + (camera.y - visibleWorldHeight / 2 - FIELD.y) * scale;
 
@@ -887,12 +1107,14 @@ function drawMinimap() {
   mapCtx.strokeStyle = "#ffffffd9";
   mapCtx.lineWidth = 1.5;
   mapCtx.setLineDash([4, 3]);
+
   mapCtx.strokeRect(
     viewX,
     viewY,
     visibleWorldWidth * scale,
     visibleWorldHeight * scale
   );
+
   mapCtx.restore();
 
   const ballX = pitchX + (ball.x - FIELD.x) * scale;
@@ -912,6 +1134,7 @@ function drawMinimap() {
 function update(dt) {
   if (statusTimer > 0) {
     statusTimer -= dt;
+
     if (statusTimer <= 0 && !paused) {
       matchStatus.textContent = "MATCH IN PLAY";
     }
@@ -927,6 +1150,7 @@ function update(dt) {
 
     ball.vx = 0;
     ball.vy = 0;
+
     updateCamera(dt);
     return;
   }
@@ -934,7 +1158,6 @@ function update(dt) {
   const movement = getMovement();
   const sprinting = keys.has("shift") || touchMoves.has("sprint");
 
-  // All user movement now targets the currently selected player.
   updatePlayer(blue, movement, dt, sprinting);
 
   updateAI(dt);
@@ -970,6 +1193,7 @@ resumeButton.addEventListener("click", togglePause);
 
 cameraButton.addEventListener("click", () => {
   cameraFollow = !cameraFollow;
+
   cameraButton.textContent = cameraFollow
     ? "CAMERA: FOLLOW"
     : "CAMERA: FIXED";
@@ -979,6 +1203,7 @@ cameraButton.addEventListener("click", () => {
 
 grassButton.addEventListener("click", () => {
   stripedPitch = !stripedPitch;
+
   grassButton.textContent = stripedPitch
     ? "PITCH: STRIPES"
     : "PITCH: PLAIN";
@@ -986,14 +1211,13 @@ grassButton.addEventListener("click", () => {
   renderWhenIdle();
 });
 
-window.addEventListener("keydown", (event) => {
+window.addEventListener("keydown", event => {
   const key = event.key.toLowerCase();
 
   if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(key)) {
     event.preventDefault();
   }
 
-  // Q or Tab switches to another blue outfield player.
   if ((key === "q" || key === "tab") && !event.repeat) {
     event.preventDefault();
     switchControlledPlayer();
@@ -1002,12 +1226,20 @@ window.addEventListener("keydown", (event) => {
 
   keys.add(key);
 
-  if (key === " " && !event.repeat) kickBall(blue, 720, "SHOT!");
-  if (key === "e" && !event.repeat) kickBall(blue, 390, "PASS!");
-  if (key === "escape" && !event.repeat) togglePause();
+  if (key === " " && !event.repeat) {
+    kickBall(blue, 720, "SHOT!");
+  }
+
+  if (key === "e" && !event.repeat) {
+    kickBall(blue, 390, "PASS!");
+  }
+
+  if (key === "escape" && !event.repeat) {
+    togglePause();
+  }
 });
 
-window.addEventListener("keyup", (event) => {
+window.addEventListener("keyup", event => {
   keys.delete(event.key.toLowerCase());
 });
 
@@ -1016,16 +1248,17 @@ window.addEventListener("blur", () => {
   touchMoves.clear();
 });
 
-document.querySelectorAll("[data-move]").forEach((button) => {
+document.querySelectorAll("[data-move]").forEach(button => {
   const direction = button.dataset.move;
 
-  button.addEventListener("pointerdown", (event) => {
+  button.addEventListener("pointerdown", event => {
     event.preventDefault();
     button.setPointerCapture?.(event.pointerId);
     touchMoves.add(direction);
   });
 
   const release = () => touchMoves.delete(direction);
+
   button.addEventListener("pointerup", release);
   button.addEventListener("pointercancel", release);
   button.addEventListener("lostpointercapture", release);
@@ -1035,7 +1268,7 @@ function bindActionButton(id, action) {
   const button = document.getElementById(id);
   if (!button) return;
 
-  button.addEventListener("pointerdown", (event) => {
+  button.addEventListener("pointerdown", event => {
     event.preventDefault();
     action();
   });
@@ -1047,16 +1280,15 @@ bindActionButton("mobilePass", () => kickBall(blue, 390, "PASS!"));
 const sprintButton = document.getElementById("mobileSprint");
 
 if (sprintButton) {
-  sprintButton.addEventListener("pointerdown", (event) => {
+  sprintButton.addEventListener("pointerdown", event => {
     event.preventDefault();
     touchMoves.add("sprint");
   });
 
-  ["pointerup", "pointercancel", "lostpointercapture"].forEach((name) => {
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(name => {
     sprintButton.addEventListener(name, () => touchMoves.delete("sprint"));
   });
 }
 
-// Draw the pitch and all 22 players before the match begins.
 resetPositions();
 render();
